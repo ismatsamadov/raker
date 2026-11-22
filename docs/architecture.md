@@ -975,9 +975,9 @@ Navigation is a typed `Route` enum, so notifications, the menu bar, Shortcuts, F
 │                      │ [ ] Blender-4.2.dmg        1.1 GB ▇         │ Added Nov 2025          │
 │                      │     App not installed · not preselected     │ From docker.com         │
 │ QUICK SELECT         │                                             │                         │
-│  Installers of apps  │ Preselected only: installers whose app      │ Why it's here           │
-│  already installed   │ is already installed. Personal files        │  Disk image of an app   │
-│  Older than 1 year   │ are never preselected.                      │  you already installed  │
+│  Installers of apps  │ Quick select picks installers whose app     │ Why it's here           │
+│  already installed   │ is already installed. Personal files are    │  Disk image of an app   │
+│  Older than 1 year   │ never preselected.                          │  you already installed  │
 │                      │                                             │ If removed              │
 │                      │                                             │  Download it again      │
 │                      │                                             │  from docker.com        │
