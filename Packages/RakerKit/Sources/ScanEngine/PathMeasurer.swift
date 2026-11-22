@@ -12,6 +12,8 @@ public struct Measurement: Sendable, Hashable {
     public var newestModification: Int64
     /// Part of the location couldn't be read, so the totals are a lower bound.
     public var isPartial: Bool
+    /// macOS privacy protection or file permissions refused access to the location itself.
+    public var isRefused = false
 
     public var newestModificationDate: Date {
         Date(timeIntervalSince1970: TimeInterval(newestModification))
@@ -27,7 +29,7 @@ public enum PathMeasurer {
             let size = SizeEstimate(logical: status.size, allocated: status.allocatedSize, reclaimable: status.allocatedSize)
             return Measurement(size: size, items: 1, newestModification: modified, isPartial: false)
         }
-        let accumulator = SizeAccumulator(rootModification: modified)
+        let accumulator = SizeAccumulator(rootPath: path, rootModification: modified)
         BulkWalker(options: .init(workerCount: workerCount)).walk(rootPath: path, sink: accumulator)
         return accumulator.measurement
     }
@@ -43,11 +45,14 @@ final class SizeAccumulator: WalkSink {
         var newest: Int64 = 0
         var linkedFileIDs = Set<UInt64>()
         var isPartial = false
+        var isRefused = false
     }
 
+    private let rootPath: String
     private let state: Mutex<State>
 
-    init(rootModification: Int64) {
+    init(rootPath: String, rootModification: Int64) {
+        self.rootPath = rootPath
         var initial = State()
         initial.newest = rootModification
         state = Mutex(initial)
@@ -75,7 +80,11 @@ final class SizeAccumulator: WalkSink {
     }
 
     func directoryFailed(token: UInt32, path: String, error: Int32) {
-        state.withLock { $0.isPartial = true }
+        let refused = path == rootPath && (error == EPERM || error == EACCES)
+        state.withLock { state in
+            state.isPartial = true
+            state.isRefused = state.isRefused || refused
+        }
     }
 
     var measurement: Measurement {
@@ -84,7 +93,8 @@ final class SizeAccumulator: WalkSink {
                 size: SizeEstimate(logical: state.logical, allocated: state.allocated, reclaimable: state.reclaimable),
                 items: state.items,
                 newestModification: state.newest,
-                isPartial: state.isPartial
+                isPartial: state.isPartial,
+                isRefused: state.isRefused
             )
         }
     }

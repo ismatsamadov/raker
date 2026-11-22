@@ -127,6 +127,34 @@ struct RuleScannerTests {
         #expect(gone.constraints.isEmpty)
     }
 
+    @Test("Reports locations it wasn't allowed to read instead of leaving them out silently")
+    func unreadable() async throws {
+        let home = try Home()
+        defer { home.fixture.remove() }
+        try home.fixture.file("home/Library/Caches/com.locked.App/data.bin", bytes: 10_000)
+        try home.fixture.file("home/Library/Logs/Locked/old.log", bytes: 10_000)
+        // Refused the way macOS's privacy protection refuses a folder.
+        chmod(home.path("home/Library/Caches/com.locked.App"), 0)
+        chmod(home.path("home/Library/Logs/Locked"), 0)
+        let lockedPack = RulePack(version: "test", rules: [
+            Rule(id: "logs", title: "Logs", explanation: "e", ifRemoved: "i", category: "logs",
+                 safety: .regenerable, targets: [RuleTarget(path: "~/Library/Logs/Locked", scope: .contents)]),
+            Rule(id: "caches", title: "App caches", explanation: "e", ifRemoved: "i", category: "caches.apps",
+                 safety: .regenerable, targets: [RuleTarget(path: "~/Library/Caches/*", scope: .item)]),
+        ])
+
+        let report = await RuleScanner(pack: lockedPack, environment: home.environment, apps: FakeApps()).scan()
+
+        #expect(report.unreadable.map(\.path) == [
+            home.path("home/Library/Caches/com.locked.App"),
+            home.path("home/Library/Logs/Locked"),
+        ])
+        #expect(report.unreadable.allSatisfy { $0.reason == .permissionDenied(area: .fullDiskAccess) })
+        #expect(!report.findings.contains { $0.id.hasSuffix("/com.locked.App") })
+        #expect(report.findings.contains { $0.id.hasSuffix("/com.example.App") })
+        #expect(report.filtered { _ in false }.unreadable == report.unreadable)
+    }
+
     @Test("Sizes, safety levels and preselection come from the rules")
     func sizesAndSafety() async throws {
         let home = try Home()

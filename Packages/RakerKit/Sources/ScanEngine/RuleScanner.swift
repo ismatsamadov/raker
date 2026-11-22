@@ -28,6 +28,9 @@ public struct RuleScanReport: Sendable {
     public let groups: [RuleFindingGroup]
     public let duration: Duration
     public let packVersion: String
+    /// Locations rules point at that Raker wasn't allowed to read, such as caches that
+    /// Full Disk Access protects. Their size is unknown, so they aren't findings.
+    public let unreadable: [SkippedLocation]
 
     public var findings: [Finding] { groups.flatMap(\.findings) }
 
@@ -41,7 +44,7 @@ public struct RuleScanReport: Sendable {
             let findings = group.findings.filter(isIncluded)
             return findings.isEmpty ? nil : RuleFindingGroup(rule: group.rule, findings: findings)
         }
-        return RuleScanReport(groups: kept, duration: duration, packVersion: packVersion)
+        return RuleScanReport(groups: kept, duration: duration, packVersion: packVersion, unreadable: unreadable)
     }
 }
 
@@ -91,12 +94,13 @@ public struct RuleScanner: Sendable {
         let resolver = OwnerResolver(apps: apps)
         var claims = ClaimSet()
         var groups: [RuleFindingGroup] = []
+        let refused = Mutex(Set<String>())
 
         for rule in pack.activeRules {
             // Earlier rules' claims decide what this rule may consider; within one rule the
             // pieces don't overlap, so they're measured in parallel.
             let pieces = rule.targets.flatMap { target in
-                candidates(for: target).flatMap { claims.split($0) }.map { (target: target, path: $0) }
+                candidates(for: target, refused: refused).flatMap { claims.split($0) }.map { (target: target, path: $0) }
             }
             let results = Mutex([Int: Finding]())
             // Few large items get more threads each; many small ones get fewer.
@@ -104,9 +108,11 @@ public struct RuleScanner: Sendable {
             let workersPerItem = max(2, cores / max(1, min(pieces.count, cores)))
             DispatchQueue.concurrentPerform(iterations: pieces.count) { index in
                 let piece = pieces[index]
-                if let finding = makeFinding(rule: rule, target: piece.target, path: piece.path, resolver: resolver,
-                                             workers: workersPerItem) {
-                    results.withLock { $0[index] = finding }
+                switch makeFinding(rule: rule, target: piece.target, path: piece.path, resolver: resolver,
+                                   workers: workersPerItem) {
+                case .found(let finding): results.withLock { $0[index] = finding }
+                case .refused: refused.withLock { _ = $0.insert(piece.path) }
+                case .ignored: break
                 }
             }
             let found = results.withLock { $0 }
@@ -120,10 +126,14 @@ public struct RuleScanner: Sendable {
                 groups.append(RuleFindingGroup(rule: rule, findings: findings.sorted { $0.size.allocated > $1.size.allocated }))
             }
         }
-        return RuleScanReport(groups: groups, duration: clock.now - start, packVersion: pack.version)
+        let unreadable = refused.withLock { $0 }.sorted().map { path in
+            SkippedLocation(path: path, reason: .permissionDenied(
+                area: ProtectedArea.classify(path: path, homeDirectory: environment.home)))
+        }
+        return RuleScanReport(groups: groups, duration: clock.now - start, packVersion: pack.version, unreadable: unreadable)
     }
 
-    private func candidates(for target: RuleTarget) -> [String] {
+    private func candidates(for target: RuleTarget, refused: borrowing Mutex<Set<String>>) -> [String] {
         guard let expanded = PathPattern.expand(target.path, in: environment) else { return [] }
         var result: [String] = []
         for match in PathPattern.existingMatches(of: expanded) {
@@ -131,7 +141,12 @@ public struct RuleScanner: Sendable {
             case .item:
                 result.append(match)
             case .contents:
-                let names = (try? FileManager.default.contentsOfDirectory(atPath: match)) ?? []
+                guard let names = try? FileManager.default.contentsOfDirectory(atPath: match) else {
+                    if policy.evaluate(match).permitsRules, Self.isRefused(match) {
+                        refused.withLock { _ = $0.insert(match) }
+                    }
+                    continue
+                }
                 result += names.sorted().map { Paths.join(match, $0) }
             }
         }
@@ -141,27 +156,35 @@ public struct RuleScanner: Sendable {
         }
     }
 
-    private func makeFinding(rule: Rule, target: RuleTarget, path: String, resolver: OwnerResolver, workers: Int) -> Finding? {
-        guard let status = try? FileStatus.of(path), !status.isSymlink else { return nil }
+    /// What became of one candidate.
+    private enum Candidate {
+        case found(Finding)
+        /// It qualified, but Raker wasn't allowed to read it.
+        case refused
+        case ignored
+    }
+
+    private func makeFinding(rule: Rule, target: RuleTarget, path: String, resolver: OwnerResolver, workers: Int) -> Candidate {
+        guard let status = try? FileStatus.of(path), !status.isSymlink else { return .ignored }
         // Refuse anything reached through a symlink anywhere in its path.
         guard let resolved = try? FileStatus.resolvedPath(path),
               PathCanonicalizer.comparisonKey(for: resolved) == PathCanonicalizer.comparisonKey(for: path)
-        else { return nil }
+        else { return .ignored }
         guard policy.evaluate(path).permitsRules else {
             Log.safety.notice("Rule \(rule.id, privacy: .public) matched a protected path; skipped")
-            return nil
+            return .ignored
         }
-        if target.onlyOwnedByUser, status.ownerID != getuid() { return nil }
+        if target.onlyOwnedByUser, status.ownerID != getuid() { return .ignored }
         let cutoff = target.olderThanDays.map { Int64(now().timeIntervalSince1970) - Int64($0) * 86_400 }
         // Something changed recently can't be untouched; don't bother measuring it.
-        if let cutoff, status.modificationTime / 1_000_000_000 >= cutoff { return nil }
-        guard let measurement = PathMeasurer.measure(path, workerCount: workers), measurement.size.allocated > 0 else {
-            return nil
-        }
+        if let cutoff, status.modificationTime / 1_000_000_000 >= cutoff { return .ignored }
+        guard let measurement = PathMeasurer.measure(path, workerCount: workers) else { return .ignored }
+        if measurement.isRefused { return .refused }
+        guard measurement.size.allocated > 0 else { return .ignored }
 
         var evidence: [Evidence] = [.rule(id: rule.id)]
         if let cutoff, let days = target.olderThanDays {
-            guard measurement.newestModification < cutoff else { return nil }
+            guard measurement.newestModification < cutoff else { return .ignored }
             evidence.append(.olderThan(days: days))
         }
 
@@ -185,12 +208,12 @@ public struct RuleScanner: Sendable {
         var constraints: [Constraint] = []
         if rule.whileRunning != .allow {
             for bundleID in Set(runningCheck) where apps.isRunning(bundleID: bundleID) {
-                if rule.whileRunning == .skip { return nil }
+                if rule.whileRunning == .skip { return .ignored }
                 constraints.append(.requiresQuit(bundleID: bundleID))
             }
         }
 
-        return Finding(
+        return .found(Finding(
             id: "\(rule.id):\(path)",
             subject: .file(FileRef(path: path, identity: status.identity)),
             category: CategoryID(rawValue: rule.category),
@@ -200,7 +223,17 @@ public struct RuleScanner: Sendable {
             explanation: rule.explanation,
             constraints: constraints,
             preselected: rule.safety == .regenerable
-        )
+        ))
+    }
+
+    /// Whether macOS privacy protection or file permissions keep Raker out of a folder.
+    private static func isRefused(_ path: String) -> Bool {
+        let descriptor = open(path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+        guard descriptor < 0 else {
+            close(descriptor)
+            return false
+        }
+        return errno == EPERM || errno == EACCES
     }
 }
 
