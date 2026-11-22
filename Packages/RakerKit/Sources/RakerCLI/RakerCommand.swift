@@ -14,8 +14,8 @@ struct RakerCommand: AsyncParsableCommand {
         abstract: "Find what uses storage on your Mac.",
         discussion: "Developer harness for the Raker engines. Only `clean --execute` removes anything.",
         subcommands: [
-            DiskUsage.self, Largest.self, Junk.self, Explain.self, Clean.self, History.self, Restore.self,
-            Volume.self, Check.self,
+            DiskUsage.self, Largest.self, Downloads.self, Large.self, Junk.self, Explain.self, Clean.self,
+            History.self, Restore.self, Volume.self, Check.self,
         ]
     )
 }
