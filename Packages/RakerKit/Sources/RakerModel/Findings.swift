@@ -35,6 +35,10 @@ public enum Evidence: Codable, Sendable, Hashable {
     case largerThan(bytes: UInt64)
     case olderThan(days: Int)
     case matchedBundleID(String)
+    /// The app or tool that owns the item, identified from its folder name.
+    case owner(name: String, bundleID: String?)
+    /// The folder is named after an app, but no installed app uses that name.
+    case ownerNotInstalled(bundleID: String)
 }
 
 /// Conditions that must hold before a finding can be acted on.
