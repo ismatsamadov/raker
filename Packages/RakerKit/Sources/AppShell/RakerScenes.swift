@@ -19,6 +19,10 @@ public struct RakerScenes: Scene {
         .commands {
             SidebarCommands()
         }
+
+        Settings {
+            SettingsView(model: model)
+        }
     }
 }
 

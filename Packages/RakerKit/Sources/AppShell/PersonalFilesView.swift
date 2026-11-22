@@ -81,7 +81,11 @@ struct PersonalFilesView: View {
                 VStack(spacing: 0) {
                     header(findings)
                     Divider()
-                    FindingsTable(findings: findings, selection: selection) { model.previewURL = $0 }
+                    FindingsTable(
+                        findings: findings, selection: selection,
+                        onPreview: { model.previewURL = $0 },
+                        onRule: { kind, path in model.addUserRule(kind, for: path) }
+                    )
                 }
                 .safeAreaInset(edge: .bottom) {
                     TrashActionBar(selected: selected, disabled: model.isCleaning) {
@@ -158,6 +162,7 @@ struct FindingsTable: View {
     let findings: [Finding]
     @Binding var selection: Set<String>
     let onPreview: (URL) -> Void
+    let onRule: (UserRule.Kind, String) -> Void
 
     var body: some View {
         Table(findings) {
@@ -195,6 +200,9 @@ struct FindingsTable: View {
                     Button("Reveal in Finder") {
                         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: finding.path)])
                     }
+                    Divider()
+                    Button("Never Suggest This") { onRule(.exclude, finding.path) }
+                    Button("Lock as Original") { onRule(.lockOriginal, finding.path) }
                 }
             }
             .width(min: 240, ideal: 380)

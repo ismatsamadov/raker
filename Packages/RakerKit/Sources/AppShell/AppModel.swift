@@ -7,6 +7,7 @@ import Persistence
 import RakerFoundation
 import RakerModel
 import RuleEngine
+import SafetyPolicy
 import ScanEngine
 import SpaceIndex
 import SystemKit
@@ -149,9 +150,14 @@ public final class AppModel {
     public var isConfirmingDuplicates = false
     private var duplicatesTask: Task<Void, Never>?
 
+    /// Exclusions and locked originals, applied to every scan and cleanup.
+    public private(set) var userRules: [UserRule] = []
+    public var isChoosingExclusion = false
+
     private let engine = ScanEngine()
     private let apps = LaunchServicesAppDirectory()
-    private let journal = try? JournalStore.open()
+    private let database = try? AppDatabase.open()
+    private var journal: JournalStore? { database?.journal }
     private let metadata = SystemFileMetadata()
     private let rulePack = Result { () throws(RulePackError) -> RulePack in try RulePackLoader.baseline() }
     private var scanTask: Task<Void, Never>?
@@ -161,6 +167,7 @@ public final class AppModel {
     public init() {
         refreshVolume()
         refreshHistory()
+        refreshUserRules()
     }
 
     public var isScanning: Bool { phase == .scanning }
@@ -222,7 +229,7 @@ public final class AppModel {
             return
         }
         cleanupPhase = .scanning
-        let scanner = RuleScanner(pack: pack, apps: apps)
+        let scanner = RuleScanner(pack: pack, apps: apps, exclusions: userRules.exclusions, lockedOriginals: userRules.lockedOriginals)
         Task {
             let report = await scanner.scan()
             cleanupReport = report
@@ -258,7 +265,7 @@ public final class AppModel {
             deleteRegenerable: deleteRegenerable,
             spaceBefore: try? VolumeInfo.space(containing: NSHomeDirectory())
         )
-        let executor = CleanupExecutor(apps: apps, journal: journal)
+        let executor = makeExecutor()
         Task {
             let receipt = await executor.execute(plan) { progress in
                 Task { @MainActor in self.cleanupProgress = progress }
@@ -354,7 +361,7 @@ public final class AppModel {
             for: findings, deleteRegenerable: false,
             spaceBefore: try? VolumeInfo.space(containing: NSHomeDirectory())
         )
-        let executor = CleanupExecutor(apps: apps, journal: journal)
+        let executor = makeExecutor()
         Task {
             let receipt = await executor.execute(plan) { progress in
                 Task { @MainActor in self.cleanupProgress = progress }
@@ -385,7 +392,7 @@ public final class AppModel {
         duplicatesTask?.cancel()
         duplicatesPhase = .scanning
         duplicateProgress = nil
-        let finder = DuplicateFinder()
+        let finder = DuplicateFinder(options: .init(exclusions: userRules.exclusions))
         duplicatesTask = Task {
             let sets = await finder.find(in: tree) { progress in
                 Task { @MainActor in self.duplicateProgress = progress }
@@ -403,12 +410,14 @@ public final class AppModel {
         duplicatesPhase = .idle
     }
 
-    /// The copy that stays: the user's choice, or the strategy's suggestion.
+    /// The copy that stays: a locked original if there is one, otherwise the user's choice,
+    /// otherwise the strategy's suggestion.
     public func keeper(of set: DuplicateSet) -> DuplicateFile {
-        if let path = keeperOverrides[set.id], let file = set.files.first(where: { $0.path == path }) {
+        if !set.files.contains(where: { isLocked($0.path) }),
+           let path = keeperOverrides[set.id], let file = set.files.first(where: { $0.path == path }) {
             return file
         }
-        return duplicateStrategy.keeper(in: set)
+        return duplicateStrategy.keeper(in: set, locked: userRules.lockedOriginals)
     }
 
     /// Keeps this copy instead, and makes sure it isn't selected for removal.
@@ -435,7 +444,7 @@ public final class AppModel {
             for: findings, deleteRegenerable: false,
             spaceBefore: try? VolumeInfo.space(containing: NSHomeDirectory())
         )
-        let executor = CleanupExecutor(apps: apps, journal: journal)
+        let executor = makeExecutor()
         Task {
             let receipt = await executor.execute(plan) { progress in
                 Task { @MainActor in self.cleanupProgress = progress }
@@ -456,7 +465,61 @@ public final class AppModel {
     }
 
     private func makeFinder() -> PersonalFileFinder {
-        PersonalFileFinder(metadata: metadata, installedAppNames: ApplicationsFolder.installedAppNames())
+        PersonalFileFinder(metadata: metadata, installedAppNames: ApplicationsFolder.installedAppNames(),
+                           exclusions: userRules.exclusions, lockedOriginals: userRules.lockedOriginals)
+    }
+
+    private func makeExecutor() -> CleanupExecutor {
+        CleanupExecutor(exclusions: userRules.exclusions, lockedOriginals: userRules.lockedOriginals,
+                        apps: apps, journal: journal)
+    }
+
+    // MARK: Exclusions and locked originals
+
+    /// Adds a rule and takes matching items out of every list right away.
+    public func addUserRule(_ kind: UserRule.Kind, for path: String) {
+        try? database?.userRules.add(UserRule(path: path, kind: kind))
+        refreshUserRules()
+        applyUserRules()
+    }
+
+    public func removeUserRule(_ rule: UserRule) {
+        try? database?.userRules.remove(id: rule.id)
+        refreshUserRules()
+    }
+
+    private func refreshUserRules() {
+        userRules = (try? database?.userRules.all()) ?? []
+    }
+
+    private var userRulePolicy: SafetyPolicy {
+        SafetyPolicy(homeDirectory: NSHomeDirectory(), exclusions: userRules.exclusions, lockedOriginals: userRules.lockedOriginals)
+    }
+
+    private func isLocked(_ path: String) -> Bool {
+        userRulePolicy.evaluate(path) == .denied(.lockedOriginal)
+    }
+
+    private func applyUserRules() {
+        let policy = userRulePolicy
+        func blocked(_ path: String) -> Bool {
+            switch policy.evaluate(path) {
+            case .denied(.userExcluded), .denied(.lockedOriginal): true
+            default: false
+            }
+        }
+        cleanupReport = cleanupReport?.filtered { !blocked($0.path) }
+        cleanupSelection = cleanupSelection.filter { id in cleanupReport?.findings.contains { $0.id == id } ?? false }
+        downloadsFindings.removeAll { blocked($0.path) }
+        downloadsSelection = downloadsSelection.filter { id in downloadsFindings.contains { $0.id == id } }
+        largeFindings.removeAll { blocked($0.path) }
+        largeSelection = largeSelection.filter { id in largeFindings.contains { $0.id == id } }
+        // Excluded copies leave their sets; locked copies stay, as the copy that's kept.
+        duplicateSets = duplicateSets.compactMap { set in
+            let files = set.files.filter { policy.evaluate($0.path) != .denied(.userExcluded) }
+            return files.count > 1 ? DuplicateSet(id: set.id, size: set.size, allocatedPerCopy: set.allocatedPerCopy, files: files) : nil
+        }
+        duplicatesSelection = duplicatesSelection.filter { !blocked($0) }
     }
 
     public func refreshVolume() {

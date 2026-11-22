@@ -31,7 +31,9 @@ struct CleanupView: View {
                 ContentUnavailableView("Couldn't scan", systemImage: "exclamationmark.triangle", description: Text(message))
             case .finished:
                 if let report = model.cleanupReport {
-                    CleanupReportList(report: report, selection: $model.cleanupSelection, appName: model.appName(for:))
+                    CleanupReportList(report: report, selection: $model.cleanupSelection, appName: model.appName(for:)) {
+                        model.addUserRule(.exclude, for: $0)
+                    }
                         .safeAreaInset(edge: .bottom) {
                             CleanupActionBar(model: model)
                                 .padding(Spacing.l)
@@ -60,6 +62,7 @@ struct CleanupReportList: View {
     let report: RuleScanReport
     @Binding var selection: Set<String>
     let appName: (String) -> String
+    let onExclude: (String) -> Void
 
     var body: some View {
         List {
@@ -76,7 +79,7 @@ struct CleanupReportList: View {
                 let groups = report.groups.filter { $0.rule.safety.level == level }
                 if !groups.isEmpty {
                     Section(level.title) {
-                        ForEach(groups) { CleanupGroupRow(group: $0, selection: $selection, appName: appName) }
+                        ForEach(groups) { CleanupGroupRow(group: $0, selection: $selection, appName: appName, onExclude: onExclude) }
                     }
                 }
             }
@@ -238,10 +241,11 @@ struct CleanupGroupRow: View {
     let group: RuleFindingGroup
     @Binding var selection: Set<String>
     let appName: (String) -> String
+    let onExclude: (String) -> Void
 
     var body: some View {
         DisclosureGroup {
-            ForEach(group.findings) { FindingRow(finding: $0, selection: $selection) }
+            ForEach(group.findings) { FindingRow(finding: $0, selection: $selection, onExclude: onExclude) }
         } label: {
             HStack(alignment: .top, spacing: Spacing.s) {
                 groupCheckbox
@@ -309,6 +313,7 @@ struct CleanupGroupRow: View {
 struct FindingRow: View {
     let finding: Finding
     @Binding var selection: Set<String>
+    let onExclude: (String) -> Void
 
     var body: some View {
         HStack(spacing: Spacing.s) {
@@ -348,6 +353,8 @@ struct FindingRow: View {
             Button("Reveal in Finder") {
                 NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
             }
+            Divider()
+            Button("Never Suggest This") { onExclude(path) }
         }
     }
 

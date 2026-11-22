@@ -205,6 +205,9 @@ struct DuplicateSetSection: View {
                     Button("Reveal in Finder") {
                         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: file.path)])
                     }
+                    Divider()
+                    Button("Lock as Original") { model.addUserRule(.lockOriginal, for: file.path) }
+                    Button("Never Suggest This") { model.addUserRule(.exclude, for: file.path) }
                 }
             }
         } header: {

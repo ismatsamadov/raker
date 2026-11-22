@@ -82,6 +82,10 @@ struct LargestItemsView: View {
             .contextMenu(forSelectionType: SizeTree.Index.self) { indices in
                 Button("Reveal in Finder") { reveal(indices, in: tree) }
                 Button("Quick Look") { preview(indices.first, in: tree) }
+                Divider()
+                Button("Never Suggest This") {
+                    for index in indices { model.addUserRule(.exclude, for: tree.path(of: index)) }
+                }
             } primaryAction: { indices in
                 guard let index = indices.first else { return }
                 if tree.kind(of: index) == .directory {
