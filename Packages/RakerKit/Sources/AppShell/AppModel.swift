@@ -55,6 +55,7 @@ public final class AppModel {
         case duplicates
         case cleanup
         case applications
+        case leftovers
         case history
 
         public var id: Self { self }
@@ -68,6 +69,7 @@ public final class AppModel {
             case .duplicates: "Duplicates"
             case .cleanup: "Caches & Temporary Files"
             case .applications: "Applications"
+            case .leftovers: "Leftovers"
             case .history: "Receipts"
             }
         }
@@ -81,6 +83,7 @@ public final class AppModel {
             case .duplicates: "square.on.square"
             case .cleanup: "sparkles"
             case .applications: "square.grid.2x2"
+            case .leftovers: "app.dashed"
             case .history: "clock.arrow.circlepath"
             }
         }
@@ -373,6 +376,7 @@ public final class AppModel {
     /// Cleans everything in the Tray, then shows the receipt. Items that rebuild automatically
     /// are deleted if the person agreed; everything else goes to the Trash.
     public func cleanTray() {
+        unstageReinstalledLeftovers()
         let findings = tray.findings
         guard !findings.isEmpty, !isCleaning else { return }
         let sources = Set(tray.items.map(\.source))
@@ -755,6 +759,62 @@ public final class AppModel {
         isReviewingTray = true
     }
 
+    // MARK: Leftovers
+
+    public private(set) var leftoversPhase: Phase = .idle
+    /// What removed apps left behind, the largest first once measured.
+    public private(set) var leftovers: [Leftovers] = []
+    public private(set) var leftoverMeasurements: [String: PathMeasurement] = [:]
+
+    /// Looks for leftovers, then measures them. Staged leftovers that are gone, or whose app
+    /// is installed again, leave the Tray.
+    public func loadLeftovers() {
+        leftoversPhase = .scanning
+        Task {
+            let found = await Task.detached(priority: .userInitiated) {
+                let installed = AppInventory().apps().map(AppIdentity.of)
+                // A fresh directory, so an app installed since the last look counts.
+                return LeftoverFinder(apps: LaunchServicesAppDirectory(), installed: installed).leftovers()
+            }.value
+            leftovers = found
+            leftoversPhase = .finished
+            let files = found.flatMap(\.files)
+            leftoverMeasurements = await Task.detached(priority: .userInitiated) { AppFile.measure(files) }.value
+            leftovers.sort { size(of: $0) > size(of: $1) }
+            restage(from: .leftovers, keepingOnly: leftoverFindings())
+        }
+    }
+
+    /// A removed app's measured files, together.
+    public func size(of leftovers: Leftovers) -> UInt64 {
+        leftovers.files.reduce(UInt64(0)) { $0 &+ (leftoverMeasurements[$1.path]?.size.allocated ?? 0) }
+    }
+
+    /// Finding IDs of the leftovers that are staged.
+    public var leftoversSelection: Set<String> {
+        get { tray.ids(from: .leftovers) }
+        set { stage(newValue, from: .leftovers, among: leftoverFindings()) }
+    }
+
+    private func leftoverFindings() -> [Finding] {
+        leftovers.flatMap { group in
+            group.files.compactMap { $0.finding(leftBy: group.bundleID, size: leftoverMeasurements[$0.path]?.size) }
+        }
+    }
+
+    /// Stages the leftovers Raker is certain of, then opens the review.
+    public func stageCertainLeftovers() {
+        leftoversSelection.formUnion(leftovers.flatMap(\.files).filter(\.isPreselected).map { "leftovers:\($0.path)" })
+        isReviewingTray = true
+    }
+
+    /// Leftovers of an app that's installed again since they were staged are its data again.
+    private func unstageReinstalledLeftovers() {
+        let back = LeftoverFinder.reinstalled(tray.items(from: .leftovers).map(\.finding), apps: LaunchServicesAppDirectory())
+        guard !back.isEmpty else { return }
+        updateTray { $0.unstage { back.contains($0.id) } }
+    }
+
     // MARK: Inspector
 
     public var isShowingInspector = true
@@ -774,7 +834,7 @@ public final class AppModel {
     public var hasInspector: Bool {
         switch selection ?? .overview {
         case .cleanup, .downloads, .largeAndOld, .duplicates, .largest: true
-        case .overview, .applications, .history: false
+        case .overview, .applications, .leftovers, .history: false
         }
     }
 
@@ -798,7 +858,7 @@ public final class AppModel {
         case .downloads: return downloadsFindings.first { $0.id == id }
         case .largeAndOld: return largeFindings.first { $0.id == id }
         case .duplicates: return duplicateFinding(at: id)
-        case .largest, .overview, .applications, .history: return nil
+        case .largest, .overview, .applications, .leftovers, .history: return nil
         }
     }
 
@@ -838,7 +898,7 @@ public final class AppModel {
             } else if canStageFromExplorer(finding) {
                 updateTray { $0.stage(TrayItem(finding: finding, source: .largest)) }
             }
-        case .overview, .applications, .history: break
+        case .overview, .applications, .leftovers, .history: break
         }
     }
 

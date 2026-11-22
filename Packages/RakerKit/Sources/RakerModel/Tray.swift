@@ -12,6 +12,8 @@ public struct TrayItem: Codable, Sendable, Hashable, Identifiable {
         case largest
         /// An app and its files.
         case apps
+        /// Files left behind by apps that are no longer installed.
+        case leftovers
     }
 
     public var finding: Finding

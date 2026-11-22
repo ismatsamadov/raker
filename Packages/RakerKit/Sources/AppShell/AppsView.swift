@@ -2,6 +2,7 @@ import AppCatalog
 import AppKit
 import DesignSystem
 import RakerFoundation
+import ScanEngine
 import SwiftUI
 
 /// Installed apps with their size, source and architecture, and for the selected app,
@@ -157,7 +158,9 @@ struct AppDetailView: View {
                     if !files.isEmpty {
                         Section(kind.title) {
                             ForEach(files) { file in
-                                AppFileRow(file: file, app: app, model: model)
+                                AppFileRow(file: file, id: "apps:\(file.path)", selection: $model.appsSelection,
+                                           measurement: model.appFileMeasurements[file.path], isEnabled: app.isRemovable,
+                                           model: model)
                             }
                         }
                     }
@@ -252,26 +255,29 @@ struct AppDetailView: View {
     }
 }
 
+/// One of an app's files, with a checkbox that stages it.
 struct AppFileRow: View {
     let file: AppFile
-    let app: AppBundleInfo
+    /// The ID of the file's finding, which the checkbox adds to the selection.
+    let id: String
+    @Binding var selection: Set<String>
+    let measurement: PathMeasurement?
+    var isEnabled = true
     @Bindable var model: AppModel
 
     var body: some View {
-        let id = "apps:\(file.path)"
-        let measurement = model.appFileMeasurements[file.path]
         HStack(spacing: Spacing.s) {
             Toggle(isOn: Binding(
-                get: { model.appsSelection.contains(id) },
+                get: { selection.contains(id) },
                 set: { isOn in
-                    if isOn { model.appsSelection.insert(id) } else { model.appsSelection.remove(id) }
+                    if isOn { selection.insert(id) } else { selection.remove(id) }
                 }
             )) {
                 EmptyView()
             }
             .toggleStyle(.checkbox)
             .labelsHidden()
-            .disabled(!app.isRemovable)
+            .disabled(!isEnabled)
             Image(nsImage: NSWorkspace.shared.icon(forFile: file.path))
                 .resizable()
                 .frame(width: 18, height: 18)

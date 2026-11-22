@@ -125,7 +125,7 @@ public struct RakerRootView: View {
     private var showsTray: Bool {
         guard model.tray.isEmpty else { return true }
         switch model.selection ?? .overview {
-        case .cleanup, .downloads, .largeAndOld, .duplicates, .applications: return true
+        case .cleanup, .downloads, .largeAndOld, .duplicates, .applications, .leftovers: return true
         case .overview, .largest, .history: return false
         }
     }
@@ -147,6 +147,8 @@ public struct RakerRootView: View {
             CleanupView(model: model)
         case .applications:
             AppsView(model: model)
+        case .leftovers:
+            LeftoversView(model: model)
         case .history:
             HistoryView(model: model)
         }
@@ -167,6 +169,7 @@ struct SidebarView: View {
             }
             Section("Apps") {
                 row(.applications)
+                row(.leftovers)
             }
             Section("History") {
                 row(.history)
