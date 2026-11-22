@@ -10,6 +10,7 @@ let package = Package(
         .library(name: "SafetyPolicy", targets: ["SafetyPolicy"]),
         .library(name: "FileSystemKit", targets: ["FileSystemKit"]),
         .library(name: "SystemKit", targets: ["SystemKit"]),
+        .library(name: "AppCatalog", targets: ["AppCatalog"]),
         .library(name: "RuleEngine", targets: ["RuleEngine"]),
         .library(name: "SpaceIndex", targets: ["SpaceIndex"]),
         .library(name: "ScanEngine", targets: ["ScanEngine"]),
@@ -35,6 +36,10 @@ let package = Package(
         // Platform adapters
         .target(name: "FileSystemKit", dependencies: ["RakerFoundation", "RakerModel"]),
         .target(name: "SystemKit", dependencies: ["RakerModel"]),
+        .target(
+            name: "AppCatalog",
+            dependencies: ["RakerFoundation", "RakerModel", "FileSystemKit", "RuleEngine", "ScanEngine"]
+        ),
 
         // Engines
         .target(
@@ -64,7 +69,7 @@ let package = Package(
             name: "AppShell",
             dependencies: [
                 "RakerFoundation", "RakerModel", "SafetyPolicy", "FileSystemKit", "SystemKit", "RuleEngine", "SpaceIndex",
-                "ScanEngine", "Persistence", "CleanEngine", "DuplicateEngine", "DesignSystem", "VisualizationKit",
+                "ScanEngine", "Persistence", "CleanEngine", "DuplicateEngine", "AppCatalog", "DesignSystem", "VisualizationKit",
             ]
         ),
 
@@ -74,7 +79,7 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 "RakerFoundation", "RakerModel", "SafetyPolicy", "FileSystemKit", "SystemKit", "RuleEngine",
-                "SpaceIndex", "ScanEngine", "Persistence", "CleanEngine", "DuplicateEngine",
+                "SpaceIndex", "ScanEngine", "Persistence", "CleanEngine", "DuplicateEngine", "AppCatalog",
             ]
         ),
         // Runs the SwiftUI shell without an Xcode project; the Xcode app target replaces it later.
@@ -87,6 +92,7 @@ let package = Package(
         .testTarget(name: "FileSystemKitTests", dependencies: ["FileSystemKit", "RakerFoundation"]),
         .testTarget(name: "RuleEngineTests", dependencies: ["RuleEngine", "RakerModel"]),
         .testTarget(name: "SystemKitTests", dependencies: ["SystemKit", "RakerModel"]),
+        .testTarget(name: "AppCatalogTests", dependencies: ["AppCatalog", "RuleEngine", "RakerModel"]),
         .testTarget(
             name: "ScanEngineTests",
             dependencies: ["ScanEngine", "SpaceIndex", "FileSystemKit", "RuleEngine", "RakerModel"]
