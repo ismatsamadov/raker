@@ -28,15 +28,6 @@ struct DuplicatesView: View {
                     .disabled(model.report == nil || model.duplicatesPhase == .scanning || model.isCleaning)
                 }
             }
-            .confirmationDialog(
-                "Move \(model.duplicatesSelection.count.formatted()) duplicate\(model.duplicatesSelection.count == 1 ? "" : "s") to the Trash?",
-                isPresented: $model.isConfirmingDuplicates
-            ) {
-                Button("Move to Trash") { model.trashSelectedDuplicates() }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("One copy of each file stays where it is. You can put the others back from Receipts while they're in the Trash.")
-            }
     }
 
     @ViewBuilder
@@ -91,7 +82,6 @@ struct DuplicatesView: View {
     }
 
     private var results: some View {
-        let selected = model.duplicateSets.flatMap { set in set.files.filter { model.duplicatesSelection.contains($0.path) }.map { _ in set } }
         let frees = model.duplicateSets.reduce(UInt64(0)) { $0 &+ $1.reclaimable(keeping: model.keeper(of: $1).path) }
         return VStack(spacing: 0) {
             HStack(spacing: Spacing.m) {
@@ -102,14 +92,14 @@ struct DuplicatesView: View {
                         Text("to free")
                     }
                     .font(.headline)
-                    Text("★ marks the copy that stays. Nothing is selected until you choose.")
+                    Text("★ marks the copy that stays. Nothing goes in the Tray until you choose.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button("Select All Duplicates") { model.selectAllDuplicates() }
                 if !model.duplicatesSelection.isEmpty {
-                    Button("Clear Selection") { model.duplicatesSelection = [] }
+                    Button("Remove from Tray") { model.duplicatesSelection = [] }
                 }
             }
             .padding(.horizontal, Spacing.l)
@@ -120,35 +110,6 @@ struct DuplicatesView: View {
                     DuplicateSetSection(set: set, model: model)
                 }
             }
-        }
-        .safeAreaInset(edge: .bottom) {
-            HStack(spacing: Spacing.l) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(model.duplicatesSelection.isEmpty
-                         ? "Nothing selected"
-                         : "\(model.duplicatesSelection.count.formatted()) duplicate\(model.duplicatesSelection.count == 1 ? "" : "s") selected")
-                        .font(.headline)
-                    if !selected.isEmpty {
-                        SizeText(selected.reduce(UInt64(0)) { $0 &+ $1.allocatedPerCopy })
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-                Button {
-                    model.isConfirmingDuplicates = true
-                } label: {
-                    Label("Move to Trash…", systemImage: "trash")
-                        .padding(.horizontal, Spacing.s)
-                }
-                .prominentActionStyle()
-                .controlSize(.large)
-                .disabled(model.duplicatesSelection.isEmpty || model.isCleaning)
-                .keyboardShortcut(.delete, modifiers: .command)
-            }
-            .padding(.horizontal, Spacing.l)
-            .padding(.vertical, Spacing.m)
-            .glassPanel(cornerRadius: Radius.panel)
-            .padding(Spacing.l)
         }
     }
 }

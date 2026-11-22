@@ -108,4 +108,20 @@ struct TrayModelTests {
         try await waitUntil { relaunched.tray.count == 1 }
         #expect(relaunched.tray.items.map(\.finding.path) == [staged[1]])
     }
+
+    @Test("Clearing and unstaging take items out of the Tray only")
+    func clearing() async throws {
+        let comparison = try await Comparison()
+        defer { comparison.remove() }
+        let model = comparison.model
+        model.selectAllDuplicates()
+        let first = try #require(model.tray.items.first)
+
+        model.unstage(first.id)
+        #expect(model.tray.count == 1)
+        model.clearTray()
+        #expect(model.tray.isEmpty)
+        #expect(try comparison.database.tray.all().isEmpty)
+        #expect(model.duplicateSets.first?.files.count == 3)
+    }
 }

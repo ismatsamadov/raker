@@ -38,10 +38,6 @@ struct CleanupView: View {
                             ProtectedLocationsNotice(model: model, locations: report.unreadable)
                         }
                     }
-                        .safeAreaInset(edge: .bottom) {
-                            CleanupActionBar(model: model)
-                                .padding(Spacing.l)
-                        }
                 }
             }
         }
@@ -55,9 +51,6 @@ struct CleanupView: View {
                 }
                 .disabled(model.cleanupPhase == .scanning || model.isCleaning)
             }
-        }
-        .sheet(isPresented: $model.isConfirmingCleanup) {
-            CleanupConfirmation(model: model)
         }
     }
 }
@@ -91,84 +84,11 @@ struct CleanupReportList<Notice: View>: View {
             }
             Section {
                 notice
-                Text("Items that rebuild automatically start selected. Items that need review are never selected for you, and always go to the Trash.")
+                Text("Items that rebuild automatically start in the Tray. Items that need review are never added for you, and always go to the Trash.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
         }
-    }
-}
-
-/// The floating bar with the current selection and the Clean button.
-struct CleanupActionBar: View {
-    @Bindable var model: AppModel
-
-    var body: some View {
-        let selected = model.selectedFindings
-        let bytes = selected.reduce(UInt64(0)) { $0 &+ $1.size.allocated }
-        HStack(spacing: Spacing.l) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(selected.isEmpty ? "Nothing selected" : "\(selected.count.formatted()) item\(selected.count == 1 ? "" : "s") selected")
-                    .font(.headline)
-                if !selected.isEmpty {
-                    SizeText(bytes)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
-            Button {
-                model.isConfirmingCleanup = true
-            } label: {
-                Label("Clean…", systemImage: "sparkles")
-                    .padding(.horizontal, Spacing.s)
-            }
-            .prominentActionStyle()
-            .controlSize(.large)
-            .disabled(selected.isEmpty || model.isCleaning)
-            .keyboardShortcut(.delete, modifiers: .command)
-        }
-        .padding(.horizontal, Spacing.l)
-        .padding(.vertical, Spacing.m)
-        .glassPanel(cornerRadius: Radius.panel)
-        .animation(Motion.snappy, value: model.cleanupSelection)
-    }
-}
-
-/// What will happen, grouped by destination, before anything is removed.
-struct CleanupConfirmation: View {
-    @Bindable var model: AppModel
-
-    var body: some View {
-        let selected = model.selectedFindings
-        let deleted = selected.filter { model.deleteRegenerable && $0.safety == .regenerable }
-        let trashed = selected.filter { !(model.deleteRegenerable && $0.safety == .regenerable) }
-        VStack(alignment: .leading, spacing: Spacing.l) {
-            Text("Clean \(selected.count.formatted()) item\(selected.count == 1 ? "" : "s")?")
-                .font(.title2.weight(.semibold))
-            VStack(alignment: .leading, spacing: Spacing.m) {
-                DestinationRow(symbol: "arrow.clockwise", tint: Palette.rebuildsAutomatically,
-                               title: "Deleted permanently", detail: "They rebuild automatically.", findings: deleted)
-                DestinationRow(symbol: "trash", tint: Palette.review,
-                               title: "Moved to the Trash", detail: "You can put them back from History.", findings: trashed)
-            }
-            Toggle("Skip the Trash for items that rebuild automatically", isOn: $model.deleteRegenerable)
-            if !model.appsBlockingSelection.isEmpty {
-                Label("Quit \(model.appsBlockingSelection.joined(separator: " and ")) first, or their items are skipped.",
-                      systemImage: "app.badge.checkmark")
-                    .foregroundStyle(Palette.expert)
-                    .font(.callout)
-            }
-            HStack {
-                Spacer()
-                Button("Cancel", role: .cancel) { model.isConfirmingCleanup = false }
-                    .keyboardShortcut(.cancelAction)
-                Button("Clean") { model.cleanSelected() }
-                    .prominentActionStyle()
-                    .keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(Spacing.xl)
-        .frame(width: 460)
     }
 }
 

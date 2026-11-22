@@ -57,6 +57,17 @@ public struct RakerRootView: View {
             SidebarView(selection: $model.selection)
         } detail: {
             detail(for: model.selection ?? .overview)
+                .safeAreaInset(edge: .bottom) {
+                    if showsTray {
+                        TrayCapsule(model: model)
+                            .padding(.bottom, Spacing.l)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                .animation(Motion.smooth, value: showsTray)
+                .sheet(isPresented: $model.isReviewingTray) {
+                    TrayReviewView(model: model)
+                }
         }
         .overlay {
             if model.isCleaning {
@@ -73,6 +84,15 @@ public struct RakerRootView: View {
             }
         }
         .quickLookPreview($model.previewURL)
+    }
+
+    /// The Tray shows wherever items can be staged, and everywhere once it holds something.
+    private var showsTray: Bool {
+        guard model.tray.isEmpty else { return true }
+        switch model.selection ?? .overview {
+        case .cleanup, .downloads, .largeAndOld, .duplicates: return true
+        case .overview, .largest, .history: return false
+        }
     }
 
     @ViewBuilder

@@ -108,7 +108,7 @@ public final class AppModel {
     public private(set) var cleanupReport: RuleScanReport?
     /// Skip the Trash for items that rebuild automatically. Everything else always goes to the Trash.
     public var deleteRegenerable = true
-    public var isConfirmingCleanup = false
+    public var isReviewingTray = false
     public var isShowingReceipt = false
     public private(set) var isCleaning = false
     public private(set) var cleanupProgress: CleanupExecutor.Progress?
@@ -128,8 +128,6 @@ public final class AppModel {
     public var largeCriteria = PersonalFileFinder.LargeFileCriteria() {
         didSet { refreshLargeFiles() }
     }
-    /// The list whose selection is waiting for confirmation before going to the Trash.
-    public var confirmingTrash: PersonalList?
 
     public private(set) var duplicatesPhase: Phase = .idle
     public private(set) var duplicateSets: [DuplicateSet] = []
@@ -142,7 +140,6 @@ public final class AppModel {
     }
     /// Copies the user chose to keep instead of the strategy's choice, by set ID.
     public private(set) var keeperOverrides: [String: String] = [:]
-    public var isConfirmingDuplicates = false
     private var duplicatesTask: Task<Void, Never>?
 
     /// Exclusions and locked originals, applied to every scan and cleanup.
@@ -299,25 +296,22 @@ public final class AppModel {
 
     // MARK: Cleaning
 
-    /// The findings currently selected for cleaning.
-    public var selectedFindings: [Finding] {
-        cleanupReport?.findings.filter { cleanupSelection.contains($0.id) } ?? []
-    }
-
-    /// Apps that must quit before some selected items can be cleaned.
-    public var appsBlockingSelection: [String] {
-        let bundleIDs = Set(selectedFindings.flatMap(\.constraints).compactMap { constraint -> String? in
+    /// Apps that must quit before some staged items can be cleaned.
+    public var appsBlockingTray: [String] {
+        let bundleIDs = Set(tray.findings.flatMap(\.constraints).compactMap { constraint -> String? in
             if case .requiresQuit(let bundleID) = constraint, apps.isRunning(bundleID: bundleID) { return bundleID }
             return nil
         })
         return bundleIDs.map(appName(for:)).sorted()
     }
 
-    /// Cleans the selected findings, then shows the receipt and scans again.
-    public func cleanSelected() {
-        let findings = selectedFindings
+    /// Cleans everything in the Tray, then shows the receipt. Items that rebuild automatically
+    /// are deleted if the person agreed; everything else goes to the Trash.
+    public func cleanTray() {
+        let findings = tray.findings
         guard !findings.isEmpty, !isCleaning else { return }
-        isConfirmingCleanup = false
+        let sources = Set(tray.items.map(\.source))
+        isReviewingTray = false
         isCleaning = true
         let plan = PlanBuilder.plan(
             for: findings,
@@ -325,18 +319,53 @@ public final class AppModel {
             spaceBefore: try? VolumeInfo.space(containing: NSHomeDirectory())
         )
         let executor = makeExecutor()
+        let started = ContinuousClock.now
         Task {
             let receipt = await executor.execute(plan) { progress in
                 Task { @MainActor in self.cleanupProgress = progress }
+            }
+            // Let the review sheet finish closing before the receipt opens.
+            let elapsed = ContinuousClock.now - started
+            if elapsed < .milliseconds(450) {
+                try? await Task.sleep(for: .milliseconds(450) - elapsed)
             }
             isCleaning = false
             cleanupProgress = nil
             lastReceipt = receipt
             isShowingReceipt = true
+            removeCleaned(in: receipt)
             unstageCompleted(in: receipt)
             refreshVolume()
             refreshHistory()
-            scanCleanup(preselect: false)
+            if sources.contains(.cleanup) {
+                scanCleanup(preselect: false)
+            }
+        }
+    }
+
+    public func clearTray() {
+        updateTray { $0.removeAll() }
+    }
+
+    public func unstage(_ id: String) {
+        updateTray { $0.unstage(id) }
+    }
+
+    /// Takes what a cleanup removed out of the lists that showed it.
+    private func removeCleaned(in receipt: CleanupReceipt) {
+        let removed = receipt.items.filter { item in
+            switch item.outcome {
+            case .movedToTrash, .deleted: true
+            case .skipped, .failed: false
+            }
+        }
+        let ids = Set(removed.map(\.findingID))
+        let paths = Set(removed.map(\.path))
+        downloadsFindings.removeAll { ids.contains($0.id) }
+        largeFindings.removeAll { ids.contains($0.id) }
+        duplicateSets = duplicateSets.compactMap { set in
+            let files = set.files.filter { !paths.contains($0.path) }
+            return files.count > 1 ? DuplicateSet(id: set.id, size: set.size, allocatedPerCopy: set.allocatedPerCopy, files: files) : nil
         }
     }
 
@@ -414,39 +443,6 @@ public final class AppModel {
         }.map(\.id))
     }
 
-    /// Moves the selected files of a list to the Trash, then shows the receipt.
-    public func trashSelected(_ list: PersonalList) {
-        let selection = list == .downloads ? downloadsSelection : largeSelection
-        let findings = findings(for: list).filter { selection.contains($0.id) }
-        guard !findings.isEmpty, !isCleaning else { return }
-        confirmingTrash = nil
-        isCleaning = true
-        let plan = PlanBuilder.plan(
-            for: findings, deleteRegenerable: false,
-            spaceBefore: try? VolumeInfo.space(containing: NSHomeDirectory())
-        )
-        let executor = makeExecutor()
-        Task {
-            let receipt = await executor.execute(plan) { progress in
-                Task { @MainActor in self.cleanupProgress = progress }
-            }
-            isCleaning = false
-            cleanupProgress = nil
-            lastReceipt = receipt
-            isShowingReceipt = true
-            let moved = Set(receipt.items.filter { if case .movedToTrash = $0.outcome { true } else { false } }.map(\.findingID))
-            switch list {
-            case .downloads:
-                downloadsFindings.removeAll { moved.contains($0.id) }
-            case .largeAndOld:
-                largeFindings.removeAll { moved.contains($0.id) }
-            }
-            unstageCompleted(in: receipt)
-            refreshVolume()
-            refreshHistory()
-        }
-    }
-
     // MARK: Duplicates
 
     /// Compares files in the last scan of the current scope. Reads file contents, on this Mac.
@@ -496,36 +492,6 @@ public final class AppModel {
             let keeper = keeper(of: set).path
             return set.files.map(\.path).filter { $0 != keeper }
         })
-    }
-
-    /// Moves the selected copies to the Trash, keeping one copy of each set.
-    public func trashSelectedDuplicates() {
-        let findings = duplicateSets.flatMap { $0.findings(removing: duplicatesSelection, keeping: keeper(of: $0)) }
-        guard !findings.isEmpty, !isCleaning else { return }
-        isConfirmingDuplicates = false
-        isCleaning = true
-        let plan = PlanBuilder.plan(
-            for: findings, deleteRegenerable: false,
-            spaceBefore: try? VolumeInfo.space(containing: NSHomeDirectory())
-        )
-        let executor = makeExecutor()
-        Task {
-            let receipt = await executor.execute(plan) { progress in
-                Task { @MainActor in self.cleanupProgress = progress }
-            }
-            isCleaning = false
-            cleanupProgress = nil
-            lastReceipt = receipt
-            isShowingReceipt = true
-            let moved = Set(receipt.items.filter { if case .movedToTrash = $0.outcome { true } else { false } }.map(\.path))
-            unstageCompleted(in: receipt)
-            duplicateSets = duplicateSets.compactMap { set in
-                let files = set.files.filter { !moved.contains($0.path) }
-                return files.count > 1 ? DuplicateSet(id: set.id, size: set.size, allocatedPerCopy: set.allocatedPerCopy, files: files) : nil
-            }
-            refreshVolume()
-            refreshHistory()
-        }
     }
 
     private func makeFinder() -> PersonalFileFinder {

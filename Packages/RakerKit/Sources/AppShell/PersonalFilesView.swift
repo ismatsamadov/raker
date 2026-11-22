@@ -15,18 +15,6 @@ struct PersonalFilesView: View {
         content
             .navigationTitle(list == .downloads ? "Downloads & Installers" : "Large & Old")
             .toolbar { toolbar }
-            .confirmationDialog(
-                "Move \(selected.count.formatted()) item\(selected.count == 1 ? "" : "s") to the Trash?",
-                isPresented: Binding(
-                    get: { model.confirmingTrash == list },
-                    set: { if !$0 { model.confirmingTrash = nil } }
-                )
-            ) {
-                Button("Move to Trash") { model.trashSelected(list) }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("You can put them back from Receipts while they're still in the Trash.")
-            }
     }
 
     private var phase: AppModel.Phase {
@@ -35,10 +23,6 @@ struct PersonalFilesView: View {
 
     private var selection: Binding<Set<String>> {
         list == .downloads ? $model.downloadsSelection : $model.largeSelection
-    }
-
-    private var selected: [Finding] {
-        model.findings(for: list).filter { selection.wrappedValue.contains($0.id) }
     }
 
     @ViewBuilder
@@ -98,12 +82,6 @@ struct PersonalFilesView: View {
                         onRule: { kind, path in model.addUserRule(kind, for: path) }
                     )
                 }
-                .safeAreaInset(edge: .bottom) {
-                    TrashActionBar(selected: selected, disabled: model.isCleaning) {
-                        model.confirmingTrash = list
-                    }
-                    .padding(Spacing.l)
-                }
             }
         }
     }
@@ -117,7 +95,7 @@ struct PersonalFilesView: View {
                 }
                 .font(.headline)
                 Text(list == .downloads
-                     ? "Nothing is selected for you. Archives may be your only copy of what's inside."
+                     ? "Nothing goes in the Tray for you. Archives may be your only copy of what's inside."
                      : "Files in \(model.scope.title) from the last scan. App bundles, ~/Library and hidden folders are left out.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -127,7 +105,7 @@ struct PersonalFilesView: View {
                 Button("Select Installers of Installed Apps") { model.selectInstallersOfInstalledApps() }
             }
             if !selection.wrappedValue.isEmpty {
-                Button("Clear Selection") { selection.wrappedValue = [] }
+                Button("Remove from Tray") { selection.wrappedValue = [] }
             }
         }
         .padding(.horizontal, Spacing.l)
@@ -248,38 +226,6 @@ struct Badge: View {
             .padding(.horizontal, Spacing.xs)
             .padding(.vertical, Spacing.xxs)
             .background(Capsule().fill(tint.opacity(0.12)))
-    }
-}
-
-/// The floating bar for personal files: they always go to the Trash.
-struct TrashActionBar: View {
-    let selected: [Finding]
-    let disabled: Bool
-    let action: () -> Void
-
-    var body: some View {
-        HStack(spacing: Spacing.l) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(selected.isEmpty ? "Nothing selected" : "\(selected.count.formatted()) item\(selected.count == 1 ? "" : "s") selected")
-                    .font(.headline)
-                if !selected.isEmpty {
-                    SizeText(selected.reduce(UInt64(0)) { $0 &+ $1.size.allocated })
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
-            Button(action: action) {
-                Label("Move to Trash…", systemImage: "trash")
-                    .padding(.horizontal, Spacing.s)
-            }
-            .prominentActionStyle()
-            .controlSize(.large)
-            .disabled(selected.isEmpty || disabled)
-            .keyboardShortcut(.delete, modifiers: .command)
-        }
-        .padding(.horizontal, Spacing.l)
-        .padding(.vertical, Spacing.m)
-        .glassPanel(cornerRadius: Radius.panel)
     }
 }
 
