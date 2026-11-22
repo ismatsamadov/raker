@@ -400,6 +400,19 @@
       "targets": [{ "path": "~/.ollama/models", "scope": "contents" }]
     },
     {
+      "id": "apple.deviceUpdates",
+      "title": "iPhone and iPad updates",
+      "explanation": "Software the Finder downloaded to update or restore an iPhone, iPad or iPod.",
+      "ifRemoved": "The Finder downloads it again the next time it updates a device.",
+      "category": "downloads.updates",
+      "safety": "regenerable",
+      "targets": [
+        { "path": "~/Library/iTunes/iPhone Software Updates", "scope": "contents" },
+        { "path": "~/Library/iTunes/iPad Software Updates", "scope": "contents" },
+        { "path": "~/Library/iTunes/iPod Software Updates", "scope": "contents" }
+      ]
+    },
+    {
       "id": "tools.cache.hidden",
       "title": "Command-line tool caches",
       "explanation": "Caches that command-line tools keep in the hidden .cache folder.",
