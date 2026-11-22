@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Build and test RakerKit
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Select the newest Xcode on the runner
+        run: |
+          xcode="$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -n 1)"
+          if [ -n "$xcode" ]; then sudo xcode-select --switch "$xcode"; fi
+          xcodebuild -version
+          swift --version
+
+      - name: Build
+        working-directory: Packages/RakerKit
+        run: swift build
+
+      - name: Test
+        run: Scripts/test.sh
+
+      - name: Build release CLI
+        working-directory: Packages/RakerKit
+        run: swift build -c release --product raker
