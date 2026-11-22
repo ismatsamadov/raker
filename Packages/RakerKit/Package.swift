@@ -13,7 +13,9 @@ let package = Package(
         .library(name: "ScanEngine", targets: ["ScanEngine"]),
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
         .library(name: "VisualizationKit", targets: ["VisualizationKit"]),
+        .library(name: "AppShell", targets: ["AppShell"]),
         .executable(name: "raker", targets: ["RakerCLI"]),
+        .executable(name: "RakerDevApp", targets: ["RakerDevApp"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0"),
@@ -34,6 +36,13 @@ let package = Package(
         // Presentation
         .target(name: "DesignSystem", dependencies: ["RakerFoundation"]),
         .target(name: "VisualizationKit", dependencies: ["DesignSystem"]),
+        .target(
+            name: "AppShell",
+            dependencies: [
+                "RakerFoundation", "RakerModel", "FileSystemKit", "SpaceIndex", "ScanEngine",
+                "DesignSystem", "VisualizationKit",
+            ]
+        ),
 
         // Shells
         .executableTarget(
@@ -43,6 +52,8 @@ let package = Package(
                 "RakerFoundation", "RakerModel", "SafetyPolicy", "FileSystemKit", "SpaceIndex", "ScanEngine",
             ]
         ),
+        // Runs the SwiftUI shell without an Xcode project; the Xcode app target replaces it later.
+        .executableTarget(name: "RakerDevApp", dependencies: ["AppShell"]),
 
         // Tests
         .testTarget(name: "RakerFoundationTests", dependencies: ["RakerFoundation"]),
