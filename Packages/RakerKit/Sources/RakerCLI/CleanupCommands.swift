@@ -43,7 +43,22 @@ struct Junk: AsyncParsableCommand {
             }
         }
         if report.groups.isEmpty { print("\nNothing found.") }
+        printUnreadable(report.unreadable)
         print("\nNothing was removed. `raker explain <path>` describes any location.")
+    }
+
+    private func printUnreadable(_ locations: [SkippedLocation]) {
+        guard !locations.isEmpty else { return }
+        print("\nNOT READABLE  ·  \(locations.count.formatted()) location\(locations.count == 1 ? "" : "s")")
+        print("    macOS's privacy protection kept Raker out. Full Disk Access for the app running this")
+        print("    command (System Settings › Privacy & Security) lets Raker measure them.")
+        let shown = all ? locations : Array(locations.prefix(5))
+        for location in shown {
+            print("      " + Text.abbreviated(location.path))
+        }
+        if locations.count > shown.count {
+            print("      \(locations.count - shown.count) more; --all lists every one")
+        }
     }
 
     private func printGroup(_ group: RuleFindingGroup) {
@@ -225,9 +240,11 @@ private struct JunkJSON: Encodable {
 
     let packVersion: String
     let groups: [Group]
+    let unreadable: [String]
 
     init(report: RuleScanReport) {
         packVersion = report.packVersion
+        unreadable = report.unreadable.map(\.path)
         groups = report.groups.map { group in
             Group(
                 rule: group.rule.id,
