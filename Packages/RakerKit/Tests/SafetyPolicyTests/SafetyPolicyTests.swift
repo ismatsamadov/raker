@@ -85,6 +85,8 @@ struct SafetyPolicyTests {
         #expect(policy.evaluate("/Users/alex/Pictures/Photos Library.photoslibrary") == .selectionOnly(.personalFiles))
         #expect(policy.evaluate("/Volumes/Backup/movie.mov") == .selectionOnly(.personalFiles))
         #expect(policy.evaluate("/Applications/Example.app") == .selectionOnly(.installedApps))
+        #expect(policy.evaluate("/Users/alex/go/src/server/main.go") == .selectionOnly(.personalFiles))
+        #expect(policy.evaluate("/Users/alex/go/pkg") == .selectionOnly(.personalFiles))
         #expect(policy.evaluate("/Users/alex/Library/Mobile Documents/com~apple~CloudDocs/a.txt")
             == .selectionOnly(.syncedFolder))
     }
@@ -94,6 +96,8 @@ struct SafetyPolicyTests {
         #expect(policy.evaluate("/Users/alex/Library/Caches/com.example.app") == .allowed)
         #expect(policy.evaluate("/System/Volumes/Data/Users/alex/Library/Caches/com.example.app") == .allowed)
         #expect(policy.evaluate("/Users/alex/.npm/_cacache") == .allowed)
+        #expect(policy.evaluate("/Users/alex/go/pkg/mod") == .allowed)
+        #expect(policy.evaluate("/Users/alex/go/pkg/mod/github.com/x/y@v1.0.0") == .allowed)
         #expect(policy.evaluate("/var/folders/xy/abc/C/com.example.app") == .allowed)
         #expect(policy.evaluate("/Library/Caches/com.example.helper") == .allowed)
         #expect(policy.evaluate("/usr/local/Homebrew/Library/Taps/cache") == .allowed)

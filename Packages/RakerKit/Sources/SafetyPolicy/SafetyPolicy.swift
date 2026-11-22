@@ -95,6 +95,7 @@ public struct SafetyPolicy: Sendable {
         if relative.hasPrefix(".trash/") { return .selectionOnly(.personalFiles) }
         // The Library and tool folders such as ~/.npm hold app data that reviewed rules may target.
         if relative.hasPrefix("library/") || relative.hasPrefix(".") { return .allowed }
+        if Self.toolCachesInHome.contains(where: { Self.isSameOrInside(relative, $0) }) { return .allowed }
         return .selectionOnly(.personalFiles)
     }
 
@@ -134,6 +135,10 @@ public struct SafetyPolicy: Sendable {
     ]
 
     static let syncedTreesInHome: [String] = ["library/mobile documents", "library/cloudstorage"]
+
+    /// Tool caches in ordinary folders of the home folder, which otherwise hold personal files:
+    /// Go keeps its module cache in ~/go, next to code people write.
+    static let toolCachesInHome: [String] = ["go/pkg/mod"]
 
     // MARK: - Helpers
 
