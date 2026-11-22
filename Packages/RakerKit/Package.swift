@@ -9,6 +9,8 @@ let package = Package(
         .library(name: "RakerModel", targets: ["RakerModel"]),
         .library(name: "SafetyPolicy", targets: ["SafetyPolicy"]),
         .library(name: "FileSystemKit", targets: ["FileSystemKit"]),
+        .library(name: "SpaceIndex", targets: ["SpaceIndex"]),
+        .library(name: "ScanEngine", targets: ["ScanEngine"]),
     ],
     targets: [
         // Base and domain
@@ -19,9 +21,14 @@ let package = Package(
         // Platform adapters
         .target(name: "FileSystemKit", dependencies: ["RakerFoundation", "RakerModel"]),
 
+        // Engines
+        .target(name: "SpaceIndex", dependencies: ["RakerFoundation", "RakerModel", "FileSystemKit"]),
+        .target(name: "ScanEngine", dependencies: ["RakerFoundation", "RakerModel", "FileSystemKit", "SpaceIndex"]),
+
         // Tests
         .testTarget(name: "RakerFoundationTests", dependencies: ["RakerFoundation"]),
         .testTarget(name: "SafetyPolicyTests", dependencies: ["SafetyPolicy"]),
         .testTarget(name: "FileSystemKitTests", dependencies: ["FileSystemKit", "RakerFoundation"]),
+        .testTarget(name: "ScanEngineTests", dependencies: ["ScanEngine", "SpaceIndex", "FileSystemKit"]),
     ]
 )
