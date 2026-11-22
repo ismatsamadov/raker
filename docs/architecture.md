@@ -247,16 +247,16 @@ Raker.app/Contents/
 | `RakerModel` | domain | findings, plans, destinations, receipts, journal entries, access requirements, categories | M0 |
 | `SafetyPolicy` | domain | deny-list, allowed roots, canonical path comparison, user exclusions and locked originals | M0 |
 | `FileSystemKit` | platform | `getattrlistbulk` walker, volume information, clone-aware sizing, safe removal, Trash, FSEvents, cloud-file detection | M0 |
-| `SystemKit` | platform | Launch Services, Spotlight, code signatures, Mach-O, process runner, `launchctl`, `pluginkit`, package receipts, access probes, system statistics | R1 |
+| `SystemKit` | platform | Launch Services, Spotlight, code signatures, Mach-O, process runner, `launchctl`, `pluginkit`, package receipts, access probes, system statistics | M0 |
 | `HelperProtocol` | platform | XPC interface, Codable messages, operation risk tiers | R3 |
 | `PrivilegedClient` | platform | `SMAppService` lifecycle, XPC connection, version handshake | R3 |
 | `HelperService` | platform (root) | helper implementation, independent validation, authorization checks | R3 |
-| `RuleEngine` | engine | rule schema, pack loading and Ed25519 verification, pattern matching, handler registry | R2 |
+| `RuleEngine` | engine | rule schema, pack loading and Ed25519 verification, pattern matching, handler registry | M0 |
 | `ScanEngine` | engine | scan sessions, traversal consumers, skipped-location reporting | M0 |
 | `SpaceIndex` | engine | compact size tree, snapshots, diffs ("What grew?"), incremental refresh | R1 |
 | `DuplicateEngine` | engine | exact duplicates, which-copy-stays strategies, folder comparison | R1 |
 | `MediaSimilarity` | engine | similar and low-quality photos (Vision) | R4 |
-| `AppCatalog` | engine | app inventory, associated files, leftovers, reset, update checks, Trash-watcher logic | R3 |
+| `AppCatalog` | engine | app inventory, associated files, leftovers, reset, update checks, Trash-watcher logic | R2 |
 | `SystemInsights` | engine | System Data explainer, snapshots, device backups, Mail and Messages, background items, extensions | R2 |
 | `BrowserAdapters` | engine | per-browser profiles and data categories | R4 |
 | `CleanEngine` | engine | plan validation, execution, receipts, journal, restore | R1 |
@@ -269,7 +269,7 @@ Raker.app/Contents/
 | `Feature…` | presentation | one module per area: Overview, Explore, Duplicates, Clean, Apps, System, History, MenuBar, Onboarding, Settings, CommandPalette | R1 onward |
 | `AppShell` | shell | composition root, dependency wiring, routing, scenes, menus, Sparkle, App Intents | M0 |
 | `RakerCLI` | shell | the `raker` executable (swift-argument-parser) | M0 as a developer harness |
-| `RuleTool` | tooling | `raker-rules`: compile, lint, test, sign, import Homebrew data | R2 |
+| `RuleTool` | tooling | `raker-rules`: compile, lint, test, sign, import Homebrew data | R1 |
 
 ### 4.3 Module dependencies
 
@@ -590,7 +590,7 @@ items:
 
 ### 7.3 Semantics
 
-- **Variables:** `~` (the current user's home, injected so tests can use a fake home), `$DARWIN_USER_CACHE_DIR` and `$DARWIN_USER_TEMP_DIR` (from `confstr`), and `$APP(bundle-id)` (where an app is installed).
+- **Variables:** `~` (the current user's home, injected so tests can use a fake home), `$DARWIN_USER_CACHE_DIR` and `$DARWIN_USER_TEMP_DIR` (from `confstr`), `$DARWIN_USER_ROOT` (the per-user folder under /private/var/folders that holds the 0, C, T and X folders; `$DARWIN_USER_DIR` is only its 0 folder), and `$APP(bundle-id)` (where an app is installed).
 - **Patterns:** `*`, `**`, `?` and `{a,b}`. Matching follows the volume: case- and Unicode-normalization-insensitive on the default case-insensitive APFS format.
 - **Filters:** `olderThan`, `largerThan`, `kind`, `exclude`.
 - **Conditions:** `ifInstalled` and `ifNotInstalled` (bundle IDs), `requires.tool` (resolved from known absolute paths, never from `PATH`), a macOS version range, and CPU architecture.
@@ -825,7 +825,7 @@ Every capability in `features.md`, where it lives, and when it ships. Releases a
 | 6 | Explain "System Data" and gaps | SystemInsights, HelperService | R3 | Full Disk Access; helper for root-only sizes |
 | 7 | Historical growth and alerts | SpaceIndex, Scheduler | R2 | notifications |
 | 8 | Menu bar storage monitor | FeatureMenuBar | R2 | notifications |
-| 9 | Caches, logs and temporary files | RuleEngine, FeatureClean | R2 | Full Disk Access for some areas; helper for system logs |
+| 9 | Caches, logs and temporary files | RuleEngine, FeatureClean | R1 | Full Disk Access for some areas; helper for system logs |
 | 10 | Old downloads and installers | ScanEngine (DownloadsClassifier), FeatureExplore | R1 | Downloads folder |
 | 11 | Large and old personal files | ScanEngine (LargestItems), FeatureExplore | R1 | — |
 | 12 | Screenshots and downloaded media | ScanEngine, SystemInsights | R2 | — |
@@ -842,18 +842,18 @@ Every capability in `features.md`, where it lives, and when it ships. Releases a
 | 23 | Media-library support | MediaSimilarity | later: Apple Photos through PhotoKit · other catalogs: No for now | Photos |
 | 24 | New duplicate alerts | DuplicateEngine, Scheduler | later | notifications |
 | 25 | Folder rules and filing | RuleEngine (user rules), Scheduler | later | — |
-| 26 | App inventory and uninstall | AppCatalog, FeatureApps | R3 | Full Disk Access, app bundle protection, helper |
-| 27 | Leftovers and app reset | AppCatalog | R3 | Full Disk Access |
+| 26 | App inventory and uninstall | AppCatalog, FeatureApps | R2 | Full Disk Access, app bundle protection, helper |
+| 27 | Leftovers and app reset | AppCatalog | R2 | Full Disk Access |
 | 28 | Startup and background items | SystemInsights, HelperService | R3 | helper for system items |
 | 29 | Extensions, plug-ins and services | SystemInsights | R3 | — |
 | 30 | App updates | AppCatalog | R4, opt-in | network |
 | 31 | Browser privacy cleanup | BrowserAdapters | R4 | Full Disk Access (Safari) |
 | 32 | Other privacy traces and permissions | SystemInsights | R4 recent items · later a read-only permissions view | Full Disk Access |
 | 33 | Browser organization | — | No | — |
-| 34 | Xcode storage | RuleEngine, Maintenance | R4 | — |
-| 35 | Package managers and build tools | RuleEngine, Maintenance | R4 | — |
+| 34 | Xcode storage | RuleEngine, Maintenance | R1 build data · R4 archives, simulators, device support | — |
+| 35 | Package managers and build tools | RuleEngine, Maintenance | R1 caches · R4 project artifacts and tool commands | — |
 | 36 | Containers, emulators and VMs | RuleEngine, Maintenance | R4 | — |
-| 37 | AI tool storage | RuleEngine | R4 | — |
+| 37 | AI tool storage | RuleEngine | R1 models listed for review · R4 more tools | — |
 | 38 | Package and app-bundle management | AppCatalog | R4 Homebrew list and export · bundle thinning: No | — |
 | 39 | Advanced maintenance | Maintenance | R4 | helper |
 | 40 | Purgeable space and snapshots | SystemInsights, HelperService | R3 explain · later expert deletion | helper |
@@ -1254,14 +1254,14 @@ A dry-run mode (a developer setting in the app, and `raker clean --dry-run`) bui
 
 ## 19. Roadmap
 
-Releases follow `features.md`, with two changes driven by the owner's goals: Space Lens moves up to R2, because it's the signature visual and R1 already builds the tree it draws; and R4 ships **all** of the audience-specific expansions rather than picking one, because advanced features are free.
+Releases follow `features.md`, with changes driven by the owner's goals. Caches, temporary files, logs and developer caches move up to R1, because they're what people expect a cleaner to handle first, and the rule engine that explains them also answers "what is this?" for any location. App removal moves up to R2 for the same reason. Space Lens moves up to R2, because it's the signature visual and R1 already builds the tree it draws. R4 ships **all** of the audience-specific expansions rather than picking one, because advanced features are free.
 
 | Milestone | Theme | Contents | Exit criteria |
 |---|---|---|---|
 | M0 | Foundations (not released) | repository and package skeleton; BulkWalker; SafetyPolicy; Persistence; DesignSystem tokens and Gallery; CLI as a developer harness; CI; signing and notarization pipeline; spikes S1–S8 | the walker meets its budgets on the 1-million-entry fixture; a signed, notarized build installs from a DMG; every spike has a written answer |
-| R1 | Find and free (`features.md` first release) | Overview ring for folder scopes; largest items; Downloads and installers; large and old files; exact duplicates with which-copy-stays strategies; ReviewKit and the Tray; Quick Look and Reveal; exclusions and locked originals; Trash, receipt, History and restore; synced-file detection; first run; Access Center basics | every point in `features.md`'s "ready to ship" checklist passes, and every R1 screen meets the definition of done (§11.17) |
-| R2 | Understand growth (`features.md` first follow-up) | saved scans and What grew; menu-bar storage monitor and low-space alerts; rule engine with cache and log packs; screenshots and media; device backups; Trash across volumes; whole-disk scope with named gaps; Space Lens | rule fixtures green; no data-loss reports during the beta |
-| R3 | Apps and system (`features.md` next expansion) | uninstaller with Homebrew data; leftovers; reset; Trash watcher; startup items; extensions; privileged helper; System Data explainer; external and network volumes; folder comparison; iCloud Remove Download; snapshot insights; Mail and Messages insights; document versions and account remnants | helper security tests pass; uninstall accuracy measured on the 200 most-installed Homebrew casks |
+| R1 | Find and free (`features.md` first release) | Overview ring for folder scopes; largest items; Downloads and installers; large and old files; exact duplicates with which-copy-stays strategies; caches, temporary files, logs and developer caches through the rule engine and baseline pack; "what is this?" explanations for any location, including dot folders; ReviewKit and the Tray; Quick Look and Reveal; exclusions and locked originals; Trash, receipt, History and restore; synced-file detection; first run; Access Center basics | every point in `features.md`'s "ready to ship" checklist passes, rule fixtures are green, and every R1 screen meets the definition of done (§11.17) |
+| R2 | Apps and growth (`features.md` first follow-up, plus app removal) | uninstaller with Homebrew data; leftovers; reset; Trash watcher; saved scans and What grew; menu-bar storage monitor and low-space alerts; screenshots and media; device backups; Trash across volumes; whole-disk scope with named gaps; Space Lens | uninstall accuracy measured on the 200 most-installed Homebrew casks; no data-loss reports during the beta |
+| R3 | System (`features.md` next expansion) | startup items; extensions; privileged helper; System Data explainer; external and network volumes; folder comparison; iCloud Remove Download; snapshot insights; Mail and Messages insights; document versions and account remnants | helper security tests pass |
 | R4 | Advanced, all free (`features.md` audience expansions) | developer storage; app updates; maintenance; browser privacy and recent items; similar and low-quality photos; system monitor cards; Homebrew list and export; Shortcuts; Finder Services; CLI 1.0 | every module meets its fixtures and the definition of done |
 | Later | needs its own design | Photos library through PhotoKit; new duplicate alerts; folder rules; folder merging; expert snapshot deletion; a read-only permissions view; sensors; widgets; screen-cleaning mode | — |
 
