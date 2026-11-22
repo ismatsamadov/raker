@@ -7,13 +7,16 @@ let package = Package(
     products: [
         .library(name: "RakerFoundation", targets: ["RakerFoundation"]),
         .library(name: "RakerModel", targets: ["RakerModel"]),
+        .library(name: "SafetyPolicy", targets: ["SafetyPolicy"]),
     ],
     targets: [
         // Base and domain
         .target(name: "RakerFoundation"),
         .target(name: "RakerModel", dependencies: ["RakerFoundation"]),
+        .target(name: "SafetyPolicy"),
 
         // Tests
         .testTarget(name: "RakerFoundationTests", dependencies: ["RakerFoundation"]),
+        .testTarget(name: "SafetyPolicyTests", dependencies: ["SafetyPolicy"]),
     ]
 )
