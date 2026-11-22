@@ -15,7 +15,8 @@ struct RakerCommand: AsyncParsableCommand {
         discussion: "Developer harness for the Raker engines. Only `clean --execute` removes anything.",
         subcommands: [
             DiskUsage.self, Largest.self, Downloads.self, Large.self, Dupes.self, Junk.self, Explain.self,
-            Clean.self, History.self, Restore.self, Exclude.self, Exclusions.self, Volume.self, Check.self,
+            Clean.self, History.self, Restore.self, Exclude.self, Exclusions.self, Apps.self, AppFiles.self,
+            Volume.self, Check.self,
         ]
     )
 }
