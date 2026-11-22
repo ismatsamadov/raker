@@ -4,7 +4,7 @@ Clear the clutter. Keep what matters.
 
 Raker is a native macOS app that shows what uses your storage, explains every item, and removes only what you approve, with a receipt you can undo. It's open source and every feature is free.
 
-> **Status:** early development (milestone M0, foundations). The scanning engine, the safety policy, the rule engine with a baseline pack (caches, temporary files, logs and developer caches, each explained), the cleanup engine (items that rebuild automatically are deleted, everything else goes to the Trash, with receipts, history and restore), Downloads & Installers and Large & Old (with where files came from and when they were last opened), exact duplicates (one copy of each always stays), exclusions and locked originals (shared by the app and the CLI), the Tray (what you choose in any section, kept across relaunches, reviewed and cleaned in one go), an inspector for the item in focus with keyboard review (Space previews, Delete stages, E excludes, L locks), "what is this?" for anything in Largest Items, which can also go in the Tray, an app uninstaller that finds each app's files across the Library and says how sure it is of each, Space Lens (a sunburst of any scanned folder that zooms with a morph, colored by folder or by age), a first-run welcome, an Access Center that shows which protected areas Raker can read and how to allow the rest, a command-line harness and the first SwiftUI screens work.
+> **Status:** early development (milestone M0, foundations). The scanning engine, the safety policy, the rule engine with a baseline pack (caches, temporary files, logs and developer caches, each explained), the cleanup engine (items that rebuild automatically are deleted, everything else goes to the Trash, with receipts, history and restore), Downloads & Installers and Large & Old (with where files came from and when they were last opened), exact duplicates (one copy of each always stays), exclusions and locked originals (shared by the app and the CLI), the Tray (what you choose in any section, kept across relaunches, reviewed and cleaned in one go), an inspector for the item in focus with keyboard review (Space previews, Delete stages, E excludes, L locks), "what is this?" for anything in Largest Items, which can also go in the Tray, an app uninstaller that finds each app's files across the Library and says how sure it is of each, leftovers of removed apps (only for what macOS knew as an app), Space Lens (a sunburst of any scanned folder that zooms with a morph, colored by folder or by age), a first-run welcome, an Access Center that shows which protected areas Raker can read and how to allow the rest, a command-line harness and the first SwiftUI screens work.
 
 ## Documents
 
@@ -54,6 +54,7 @@ swift run raker exclude ~/Projects          # never suggest anything there (--lo
 swift run raker exclusions                  # list them; --remove <path> to drop one
 swift run raker apps --by-size              # installed apps: version, source, Intel-only
 swift run raker app docker                  # an app's files, and how sure Raker is of each
+swift run raker leftovers                   # what removed apps left behind
 swift run raker volume
 swift run raker check ~/Library/Caches/com.example ~/Documents/file.pdf
 
