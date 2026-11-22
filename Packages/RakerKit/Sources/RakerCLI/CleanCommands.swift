@@ -192,6 +192,7 @@ enum Receipts {
         case .missing: "already gone"
         case .protected: "protected by the safety policy"
         case .appRunning(let bundleID): "quit \(apps.installedApp(bundleID: bundleID)?.name ?? bundleID) first"
+        case .synced: "synced with iCloud or another provider"
         case .unsupported: "not supported yet"
         }
     }

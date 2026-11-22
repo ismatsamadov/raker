@@ -112,6 +112,7 @@ struct ReceiptSummary: View {
         case .missing: "already gone"
         case .protected: "protected by the safety policy"
         case .appRunning(let bundleID): "skipped while \(appName(bundleID)) is open"
+        case .synced: "synced with iCloud or another provider, so removing it here would remove it everywhere"
         case .unsupported: "not supported yet"
         }
     }

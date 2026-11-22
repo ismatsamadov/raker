@@ -121,8 +121,12 @@ public struct CleanupExecutor: Sendable {
             return .unsupported
         }
 
-        // Rule findings must be rule targets; anything else needs to be selectable by the user.
+        // Removing a synced file here would remove it on every device.
         let verdict = policy.evaluate(ref.path)
+        let synced = finding.constraints.contains { if case .synced = $0 { true } else { false } }
+        if synced || verdict == .selectionOnly(.syncedFolder) { return .synced }
+
+        // Rule findings must be rule targets; anything else needs to be selectable by the user.
         let fromRule = finding.evidence.contains { if case .rule = $0 { true } else { false } }
         guard fromRule ? verdict.permitsRules : verdict.permitsUserSelection else { return .protected }
 

@@ -167,6 +167,25 @@ struct CleanupExecutorTests {
         #expect(sandbox.exists(review))
     }
 
+    @Test("Never removes synced files, which would remove them on every device")
+    func syncedFiles() async throws {
+        let sandbox = try Sandbox()
+        defer { sandbox.remove() }
+        let iCloud = try sandbox.file("Library/Mobile Documents/com~apple~CloudDocs/report.pdf")
+        let placeholder = try sandbox.file("Movies/clip.mov")
+        var marked = try sandbox.finding(placeholder, safety: .review, constraints: [.synced(provider: "cloud")])
+        marked.evidence = []
+        var cloudFile = try sandbox.finding(iCloud, safety: .review)
+        cloudFile.evidence = []
+        let plan = PlanBuilder.plan(for: [cloudFile, marked], deleteRegenerable: false, spaceBefore: nil)
+
+        let receipt = await sandbox.executor().execute(plan)
+
+        #expect(receipt.items.map(\.outcome) == [.skipped(.synced), .skipped(.synced)])
+        #expect(sandbox.exists(iCloud))
+        #expect(sandbox.exists(placeholder))
+    }
+
     @Test("Preview reports what would happen without changing anything")
     func preview() throws {
         let sandbox = try Sandbox()

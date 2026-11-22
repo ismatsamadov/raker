@@ -10,6 +10,8 @@ public enum SkipReason: Codable, Sendable, Hashable {
     case protected
     /// The app that uses it is still running.
     case appRunning(bundleID: String)
+    /// Synced with iCloud or another provider: removing it here would remove it everywhere.
+    case synced
     /// Raker can't carry out this kind of action yet.
     case unsupported
 }
