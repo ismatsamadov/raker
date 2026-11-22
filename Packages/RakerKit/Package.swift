@@ -11,6 +11,10 @@ let package = Package(
         .library(name: "FileSystemKit", targets: ["FileSystemKit"]),
         .library(name: "SpaceIndex", targets: ["SpaceIndex"]),
         .library(name: "ScanEngine", targets: ["ScanEngine"]),
+        .executable(name: "raker", targets: ["RakerCLI"]),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0"),
     ],
     targets: [
         // Base and domain
@@ -24,6 +28,15 @@ let package = Package(
         // Engines
         .target(name: "SpaceIndex", dependencies: ["RakerFoundation", "RakerModel", "FileSystemKit"]),
         .target(name: "ScanEngine", dependencies: ["RakerFoundation", "RakerModel", "FileSystemKit", "SpaceIndex"]),
+
+        // Shells
+        .executableTarget(
+            name: "RakerCLI",
+            dependencies: [
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                "RakerFoundation", "RakerModel", "SafetyPolicy", "FileSystemKit", "SpaceIndex", "ScanEngine",
+            ]
+        ),
 
         // Tests
         .testTarget(name: "RakerFoundationTests", dependencies: ["RakerFoundation"]),
