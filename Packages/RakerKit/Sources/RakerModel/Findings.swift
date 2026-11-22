@@ -39,6 +39,8 @@ public enum Evidence: Codable, Sendable, Hashable {
     case owner(name: String, bundleID: String?)
     /// The folder is named after an app, but no installed app uses that name.
     case ownerNotInstalled(bundleID: String)
+    /// An installer or app copy whose app is already installed.
+    case appInstalled(name: String)
 }
 
 /// Conditions that must hold before a finding can be acted on.
