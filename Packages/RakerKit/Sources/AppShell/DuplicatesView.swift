@@ -1,0 +1,234 @@
+import AppKit
+import DesignSystem
+import DuplicateEngine
+import RakerFoundation
+import SwiftUI
+
+/// Identical files, verified byte for byte. One copy of each set always stays.
+struct DuplicatesView: View {
+    @Bindable var model: AppModel
+
+    var body: some View {
+        content
+            .navigationTitle("Duplicates")
+            .toolbar {
+                ToolbarItem {
+                    Picker("Copy to keep", selection: $model.duplicateStrategy) {
+                        ForEach(SurvivorStrategy.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .help("Which copy Raker suggests keeping in each set")
+                    .disabled(model.duplicateSets.isEmpty)
+                }
+                ToolbarItem {
+                    Button {
+                        model.findDuplicates()
+                    } label: {
+                        Label("Compare Again", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(model.report == nil || model.duplicatesPhase == .scanning || model.isCleaning)
+                }
+            }
+            .confirmationDialog(
+                "Move \(model.duplicatesSelection.count.formatted()) duplicate\(model.duplicatesSelection.count == 1 ? "" : "s") to the Trash?",
+                isPresented: $model.isConfirmingDuplicates
+            ) {
+                Button("Move to Trash") { model.trashSelectedDuplicates() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("One copy of each file stays where it is. You can put the others back from Receipts while they're in the Trash.")
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if model.report == nil {
+            ContentUnavailableView {
+                Label("Duplicates", systemImage: "square.on.square")
+            } description: {
+                Text("Scan a folder first, then Raker compares the files in it.")
+            } actions: {
+                Button("Scan \(model.scope.title)") { model.startScan() }
+                    .prominentActionStyle()
+            }
+        } else {
+            switch model.duplicatesPhase {
+            case .idle:
+                ContentUnavailableView {
+                    Label("Find duplicates in \(model.scope.title)", systemImage: "square.on.square")
+                } description: {
+                    Text("Raker compares file contents byte for byte, on this Mac. Files in iCloud that aren't downloaded are left alone.")
+                } actions: {
+                    Button("Find Duplicates") { model.findDuplicates() }
+                        .prominentActionStyle()
+                }
+            case .scanning:
+                VStack(spacing: Spacing.m) {
+                    if let progress = model.duplicateProgress, progress.filesToHash > 0 {
+                        ProgressView(value: progress.fraction)
+                            .frame(width: 320)
+                        Text("Comparing \(progress.filesHashed.formatted()) of \(progress.filesToHash.formatted()) files…")
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+                    } else {
+                        ProgressView("Looking for files of the same size…")
+                    }
+                    Button("Cancel") { model.cancelDuplicates() }
+                }
+            case .failed(let message):
+                ContentUnavailableView("Couldn't compare files", systemImage: "exclamationmark.triangle", description: Text(message))
+            case .finished:
+                if model.duplicateSets.isEmpty {
+                    ContentUnavailableView {
+                        Label("No duplicates", systemImage: "checkmark.circle")
+                    } description: {
+                        Text("Every file in \(model.scope.title) is unique.")
+                    }
+                } else {
+                    results
+                }
+            }
+        }
+    }
+
+    private var results: some View {
+        let selected = model.duplicateSets.flatMap { set in set.files.filter { model.duplicatesSelection.contains($0.path) }.map { _ in set } }
+        let frees = model.duplicateSets.reduce(UInt64(0)) { $0 &+ $1.reclaimable(keeping: model.keeper(of: $1).path) }
+        return VStack(spacing: 0) {
+            HStack(spacing: Spacing.m) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    HStack(spacing: Spacing.xs) {
+                        Text("\(model.duplicateSets.count.formatted()) set\(model.duplicateSets.count == 1 ? "" : "s"), up to")
+                        SizeText(frees)
+                        Text("to free")
+                    }
+                    .font(.headline)
+                    Text("★ marks the copy that stays. Nothing is selected until you choose.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Select All Duplicates") { model.selectAllDuplicates() }
+                if !model.duplicatesSelection.isEmpty {
+                    Button("Clear Selection") { model.duplicatesSelection = [] }
+                }
+            }
+            .padding(.horizontal, Spacing.l)
+            .padding(.vertical, Spacing.m)
+            Divider()
+            List {
+                ForEach(model.duplicateSets) { set in
+                    DuplicateSetSection(set: set, model: model)
+                }
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            HStack(spacing: Spacing.l) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(model.duplicatesSelection.isEmpty
+                         ? "Nothing selected"
+                         : "\(model.duplicatesSelection.count.formatted()) duplicate\(model.duplicatesSelection.count == 1 ? "" : "s") selected")
+                        .font(.headline)
+                    if !selected.isEmpty {
+                        SizeText(selected.reduce(UInt64(0)) { $0 &+ $1.allocatedPerCopy })
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                Button {
+                    model.isConfirmingDuplicates = true
+                } label: {
+                    Label("Move to Trash…", systemImage: "trash")
+                        .padding(.horizontal, Spacing.s)
+                }
+                .prominentActionStyle()
+                .controlSize(.large)
+                .disabled(model.duplicatesSelection.isEmpty || model.isCleaning)
+                .keyboardShortcut(.delete, modifiers: .command)
+            }
+            .padding(.horizontal, Spacing.l)
+            .padding(.vertical, Spacing.m)
+            .glassPanel(cornerRadius: Radius.panel)
+            .padding(Spacing.l)
+        }
+    }
+}
+
+struct DuplicateSetSection: View {
+    let set: DuplicateSet
+    @Bindable var model: AppModel
+
+    var body: some View {
+        let keeper = model.keeper(of: set)
+        Section {
+            ForEach(set.files) { file in
+                HStack(spacing: Spacing.s) {
+                    if file.path == keeper.path {
+                        Image(systemName: "star.fill")
+                            .foregroundStyle(.yellow)
+                            .frame(width: 16)
+                            .help("This copy stays")
+                    } else {
+                        Toggle(isOn: Binding(
+                            get: { model.duplicatesSelection.contains(file.path) },
+                            set: { isOn in
+                                if isOn { model.duplicatesSelection.insert(file.path) } else { model.duplicatesSelection.remove(file.path) }
+                            }
+                        )) {
+                            EmptyView()
+                        }
+                        .toggleStyle(.checkbox)
+                        .labelsHidden()
+                        .frame(width: 16)
+                    }
+                    Image(nsImage: NSWorkspace.shared.icon(forFile: file.path))
+                        .resizable()
+                        .frame(width: 18, height: 18)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(abbreviated((file.path as NSString).deletingLastPathComponent))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Text("Modified \(file.modified.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if file.path == keeper.path {
+                        Badge(text: "Stays", tint: Palette.rebuildsAutomatically)
+                    } else {
+                        Button("Keep This One") { model.keep(file, in: set) }
+                            .buttonStyle(.borderless)
+                            .font(.caption)
+                    }
+                }
+                .contextMenu {
+                    Button("Quick Look") { model.previewURL = URL(fileURLWithPath: file.path) }
+                    Button("Reveal in Finder") {
+                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: file.path)])
+                    }
+                }
+            }
+        } header: {
+            HStack(spacing: Spacing.s) {
+                Text((keeper.path as NSString).lastPathComponent)
+                    .font(.headline)
+                Text("\(set.files.count) copies × \(ByteCount(set.size).formatted)")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if set.sharesAllData {
+                    Text("Copies share their data: removing them frees nothing")
+                        .font(.caption)
+                        .foregroundStyle(Palette.expert)
+                } else {
+                    Text("Frees \(ByteCount(set.reclaimable(keeping: keeper.path)).formatted)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private func abbreviated(_ path: String) -> String {
+        let home = NSHomeDirectory()
+        return path == home || path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
+    }
+}

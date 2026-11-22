@@ -1,4 +1,5 @@
 import CleanEngine
+import DuplicateEngine
 import FileSystemKit
 import Foundation
 import Observation
@@ -131,6 +132,22 @@ public final class AppModel {
     }
     /// The list whose selection is waiting for confirmation before going to the Trash.
     public var confirmingTrash: PersonalList?
+
+    public private(set) var duplicatesPhase: Phase = .idle
+    public private(set) var duplicateSets: [DuplicateSet] = []
+    public private(set) var duplicateProgress: DuplicateFinder.Progress?
+    /// Paths of copies chosen for removal. A set's kept copy is never among them.
+    public var duplicatesSelection: Set<String> = []
+    public var duplicateStrategy: SurvivorStrategy = .original {
+        didSet {
+            keeperOverrides = [:]
+            duplicatesSelection.subtract(duplicateSets.map { keeper(of: $0).path })
+        }
+    }
+    /// Copies the user chose to keep instead of the strategy's choice, by set ID.
+    public private(set) var keeperOverrides: [String: String] = [:]
+    public var isConfirmingDuplicates = false
+    private var duplicatesTask: Task<Void, Never>?
 
     private let engine = ScanEngine()
     private let apps = LaunchServicesAppDirectory()
@@ -354,6 +371,84 @@ public final class AppModel {
             case .largeAndOld:
                 largeFindings.removeAll { moved.contains($0.id) }
                 largeSelection.subtract(moved)
+            }
+            refreshVolume()
+            refreshHistory()
+        }
+    }
+
+    // MARK: Duplicates
+
+    /// Compares files in the last scan of the current scope. Reads file contents, on this Mac.
+    public func findDuplicates() {
+        guard let tree = report?.tree else { return }
+        duplicatesTask?.cancel()
+        duplicatesPhase = .scanning
+        duplicateProgress = nil
+        let finder = DuplicateFinder()
+        duplicatesTask = Task {
+            let sets = await finder.find(in: tree) { progress in
+                Task { @MainActor in self.duplicateProgress = progress }
+            }
+            guard !Task.isCancelled else { return }
+            duplicateSets = sets
+            duplicatesSelection = []
+            keeperOverrides = [:]
+            duplicatesPhase = .finished
+        }
+    }
+
+    public func cancelDuplicates() {
+        duplicatesTask?.cancel()
+        duplicatesPhase = .idle
+    }
+
+    /// The copy that stays: the user's choice, or the strategy's suggestion.
+    public func keeper(of set: DuplicateSet) -> DuplicateFile {
+        if let path = keeperOverrides[set.id], let file = set.files.first(where: { $0.path == path }) {
+            return file
+        }
+        return duplicateStrategy.keeper(in: set)
+    }
+
+    /// Keeps this copy instead, and makes sure it isn't selected for removal.
+    public func keep(_ file: DuplicateFile, in set: DuplicateSet) {
+        keeperOverrides[set.id] = file.path
+        duplicatesSelection.remove(file.path)
+    }
+
+    /// Selects every copy except the one that stays in each set.
+    public func selectAllDuplicates() {
+        duplicatesSelection = Set(duplicateSets.flatMap { set in
+            let keeper = keeper(of: set).path
+            return set.files.map(\.path).filter { $0 != keeper }
+        })
+    }
+
+    /// Moves the selected copies to the Trash, keeping one copy of each set.
+    public func trashSelectedDuplicates() {
+        let findings = duplicateSets.flatMap { $0.findings(removing: duplicatesSelection, keeping: keeper(of: $0)) }
+        guard !findings.isEmpty, !isCleaning else { return }
+        isConfirmingDuplicates = false
+        isCleaning = true
+        let plan = PlanBuilder.plan(
+            for: findings, deleteRegenerable: false,
+            spaceBefore: try? VolumeInfo.space(containing: NSHomeDirectory())
+        )
+        let executor = CleanupExecutor(apps: apps, journal: journal)
+        Task {
+            let receipt = await executor.execute(plan) { progress in
+                Task { @MainActor in self.cleanupProgress = progress }
+            }
+            isCleaning = false
+            cleanupProgress = nil
+            lastReceipt = receipt
+            isShowingReceipt = true
+            let moved = Set(receipt.items.filter { if case .movedToTrash = $0.outcome { true } else { false } }.map(\.path))
+            duplicatesSelection.subtract(moved)
+            duplicateSets = duplicateSets.compactMap { set in
+                let files = set.files.filter { !moved.contains($0.path) }
+                return files.count > 1 ? DuplicateSet(id: set.id, size: set.size, allocatedPerCopy: set.allocatedPerCopy, files: files) : nil
             }
             refreshVolume()
             refreshHistory()

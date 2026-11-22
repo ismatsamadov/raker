@@ -66,7 +66,7 @@ public struct RakerRootView: View {
         case .largeAndOld:
             PersonalFilesView(model: model, list: .largeAndOld)
         case .duplicates:
-            PlaceholderView(section: section, message: "Identical files, verified byte for byte. You choose which copy stays.")
+            DuplicatesView(model: model)
         case .cleanup:
             CleanupView(model: model)
         case .history:
