@@ -39,6 +39,7 @@ struct CleanupView: View {
                             ProtectedLocationsNotice(model: model, locations: report.unreadable)
                         }
                     }
+                    .reviewKeyboard(model)
                 }
             }
         }

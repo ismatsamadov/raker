@@ -238,3 +238,21 @@ struct FileDates {
         added = values?.addedToDirectoryDate
     }
 }
+
+extension View {
+    /// In a list: Space previews the item in focus, Delete stages or unstages it, E excludes
+    /// it and L locks it as an original.
+    func reviewKeyboard(_ model: AppModel) -> some View {
+        onKeyPress(.space) { actOnInspected(model) { model.previewURL = URL(fileURLWithPath: $0.path) } }
+            .onKeyPress(.delete) { actOnInspected(model) { model.toggleStaged($0) } }
+            .onKeyPress("e") { actOnInspected(model) { model.addUserRule(.exclude, for: $0.path) } }
+            .onKeyPress("l") { actOnInspected(model) { model.addUserRule(.lockOriginal, for: $0.path) } }
+    }
+}
+
+@MainActor
+private func actOnInspected(_ model: AppModel, _ action: (Finding) -> Void) -> KeyPress.Result {
+    guard let finding = model.inspectedFinding else { return .ignored }
+    action(finding)
+    return .handled
+}

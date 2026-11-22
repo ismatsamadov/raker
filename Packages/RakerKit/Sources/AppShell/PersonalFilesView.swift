@@ -82,6 +82,7 @@ struct PersonalFilesView: View {
                         onPreview: { model.previewURL = $0 },
                         onRule: { kind, path in model.addUserRule(kind, for: path) }
                     )
+                    .reviewKeyboard(model)
                 }
             }
         }

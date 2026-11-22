@@ -110,6 +110,7 @@ struct DuplicatesView: View {
                     DuplicateSetSection(set: set, model: model)
                 }
             }
+            .reviewKeyboard(model)
         }
     }
 }

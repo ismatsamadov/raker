@@ -1,3 +1,4 @@
+import AppKit
 import DesignSystem
 import QuickLook
 import SwiftUI
@@ -22,6 +23,7 @@ public struct RakerScenes: Scene {
             CommandGroup(after: .help) {
                 Button("Welcome to Raker") { model.showFirstRun() }
             }
+            ItemCommands(model: model)
         }
 
         Settings {
@@ -177,3 +179,41 @@ struct PlaceholderView: View {
     }
 }
 
+/// The Item menu: actions on the item in focus, with the same effect as the inspector's buttons.
+struct ItemCommands: Commands {
+    let model: AppModel
+
+    var body: some Commands {
+        CommandMenu("Item") {
+            let finding = model.inspectedFinding
+            Button("Quick Look") {
+                if let finding { model.previewURL = URL(fileURLWithPath: finding.path) }
+            }
+            .keyboardShortcut("y", modifiers: .command)
+            .disabled(finding == nil)
+            Button("Reveal in Finder") {
+                if let finding { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: finding.path)]) }
+            }
+            .keyboardShortcut("r", modifiers: [.command, .shift])
+            .disabled(finding == nil)
+            Divider()
+            Button(finding.map { model.tray.contains($0.id) } == true ? "Take Out of the Tray" : "Add to Tray") {
+                if let finding { model.toggleStaged(finding) }
+            }
+            .disabled(finding == nil || finding.map { model.isKeptCopy($0) || $0.isSynced } == true)
+            Button("Never Suggest This") {
+                if let finding { model.addUserRule(.exclude, for: finding.path) }
+            }
+            .disabled(finding == nil)
+            Button("Lock as Original") {
+                if let finding { model.addUserRule(.lockOriginal, for: finding.path) }
+            }
+            .disabled(finding == nil)
+            Divider()
+            Button(model.isShowingInspector ? "Hide Inspector" : "Show Inspector") {
+                model.isShowingInspector.toggle()
+            }
+            .keyboardShortcut("i", modifiers: [.command, .option])
+        }
+    }
+}
