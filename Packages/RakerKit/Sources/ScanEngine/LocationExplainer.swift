@@ -49,15 +49,11 @@ public struct LocationExplainer: Sendable {
         )
     }
 
+    /// A target covers its matches and everything inside them. For a contents target the rule
+    /// describes what's inside the folder, which also explains the folder itself.
     private func covers(_ target: RuleTarget, path: String) -> Bool {
         guard let expanded = PathPattern.expand(target.path, in: environment) else { return false }
-        switch target.scope {
-        case .item:
-            return PathPattern.covers(expanded, path: path)
-        case .contents:
-            // The folder itself stays; only what's inside it is covered.
-            return PathPattern.covers(expanded + "/*", path: path)
-        }
+        return PathPattern.covers(expanded, path: path)
     }
 
     /// The most specific known location that is, or contains, `path`.

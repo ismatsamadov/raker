@@ -160,8 +160,9 @@ struct LocationExplainerTests {
         #expect(!cache.knownLocationIsExact)
         #expect(cache.measurement?.size.logical == 30_000)
 
+        // A folder whose contents a rule removes is explained by that rule, not the generic one.
         let folder = explainer.explain(home.path("home/Library/Caches/go-build"))
-        #expect(folder.rule?.id == "caches")
+        #expect(folder.rule?.id == "go")
 
         let keychains = explainer.explain(home.path("home/Library/Keychains"))
         #expect(keychains.knownLocationIsExact)
