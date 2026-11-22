@@ -39,7 +39,10 @@ let package = Package(
             resources: [.copy("Resources/baseline-pack.json")]
         ),
         .target(name: "SpaceIndex", dependencies: ["RakerFoundation", "RakerModel", "FileSystemKit"]),
-        .target(name: "ScanEngine", dependencies: ["RakerFoundation", "RakerModel", "FileSystemKit", "SpaceIndex"]),
+        .target(
+            name: "ScanEngine",
+            dependencies: ["RakerFoundation", "RakerModel", "SafetyPolicy", "FileSystemKit", "SpaceIndex", "RuleEngine"]
+        ),
 
         // Presentation
         .target(name: "DesignSystem", dependencies: ["RakerFoundation"]),
@@ -68,7 +71,10 @@ let package = Package(
         .testTarget(name: "SafetyPolicyTests", dependencies: ["SafetyPolicy"]),
         .testTarget(name: "FileSystemKitTests", dependencies: ["FileSystemKit", "RakerFoundation"]),
         .testTarget(name: "RuleEngineTests", dependencies: ["RuleEngine", "RakerModel"]),
-        .testTarget(name: "ScanEngineTests", dependencies: ["ScanEngine", "SpaceIndex", "FileSystemKit"]),
+        .testTarget(
+            name: "ScanEngineTests",
+            dependencies: ["ScanEngine", "SpaceIndex", "FileSystemKit", "RuleEngine", "RakerModel"]
+        ),
         .testTarget(name: "VisualizationKitTests", dependencies: ["VisualizationKit"]),
     ]
 )
