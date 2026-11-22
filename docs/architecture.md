@@ -259,9 +259,9 @@ Raker.app/Contents/
 | `AppCatalog` | engine | app inventory, associated files, leftovers, reset, update checks, Trash-watcher logic | R2 |
 | `SystemInsights` | engine | System Data explainer, snapshots, device backups, Mail and Messages, background items, extensions | R2 |
 | `BrowserAdapters` | engine | per-browser profiles and data categories | R4 |
-| `CleanEngine` | engine | plan validation, execution, receipts, journal, restore | R1 |
+| `CleanEngine` | engine | plan validation, execution, receipts, journal, restore | M0 |
 | `Maintenance` | engine | typed maintenance and developer actions (DNS flush, `simctl`, `brew cleanup`, …) | R4 |
-| `Persistence` | engine | GRDB database, migrations, repositories | R1 |
+| `Persistence` | engine | GRDB database, migrations, repositories | M0 |
 | `Scheduler` | engine | background jobs aware of power and thermal state | R2 |
 | `DesignSystem` | presentation | tokens, typography, motion, components, glass with fallbacks | M0 |
 | `VisualizationKit` | presentation | layouts (ring, sunburst, treemap, timeline) and Canvas or Metal renderers | R1 |
