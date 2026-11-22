@@ -55,7 +55,7 @@ public struct OwnerResolver: Sendable {
 
     /// Reverse-DNS names with at least three parts, such as com.vendor.App. Version-like
     /// names such as "v1.2.3" don't count.
-    static func looksLikeBundleID(_ name: String) -> Bool {
+    public static func looksLikeBundleID(_ name: String) -> Bool {
         let components = name.split(separator: ".", omittingEmptySubsequences: false)
         guard components.count >= 3,
               let first = components.first, (2 ... 6).contains(first.count), first.allSatisfy(\.isLetter),
