@@ -15,6 +15,7 @@ let package = Package(
         .library(name: "ScanEngine", targets: ["ScanEngine"]),
         .library(name: "Persistence", targets: ["Persistence"]),
         .library(name: "CleanEngine", targets: ["CleanEngine"]),
+        .library(name: "DuplicateEngine", targets: ["DuplicateEngine"]),
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
         .library(name: "VisualizationKit", targets: ["VisualizationKit"]),
         .library(name: "AppShell", targets: ["AppShell"]),
@@ -51,6 +52,7 @@ let package = Package(
             name: "CleanEngine",
             dependencies: ["RakerFoundation", "RakerModel", "SafetyPolicy", "FileSystemKit", "Persistence"]
         ),
+        .target(name: "DuplicateEngine", dependencies: ["RakerFoundation", "RakerModel", "FileSystemKit", "SpaceIndex"]),
 
         // Presentation
         .target(name: "DesignSystem", dependencies: ["RakerFoundation"]),
@@ -86,6 +88,10 @@ let package = Package(
         ),
         .testTarget(name: "PersistenceTests", dependencies: ["Persistence", "RakerModel"]),
         .testTarget(name: "CleanEngineTests", dependencies: ["CleanEngine", "Persistence", "FileSystemKit", "RakerModel"]),
+        .testTarget(
+            name: "DuplicateEngineTests",
+            dependencies: ["DuplicateEngine", "ScanEngine", "SpaceIndex", "FileSystemKit", "RakerModel"]
+        ),
         .testTarget(name: "VisualizationKitTests", dependencies: ["VisualizationKit"]),
     ]
 )
