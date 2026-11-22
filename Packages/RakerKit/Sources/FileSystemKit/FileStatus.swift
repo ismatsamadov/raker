@@ -8,8 +8,11 @@ public struct FileStatus: Sendable, Hashable {
     public var device: Int32
     public var inode: UInt64
     public var size: UInt64
+    /// Blocks on disk, in bytes.
+    public var allocatedSize: UInt64
     /// Nanoseconds since 1970.
     public var modificationTime: Int64
+    public var ownerID: uid_t
     public var isDirectory: Bool
     public var isSymlink: Bool
 
@@ -24,7 +27,9 @@ public struct FileStatus: Sendable, Hashable {
             device: info.st_dev,
             inode: info.st_ino,
             size: UInt64(max(0, info.st_size)),
+            allocatedSize: UInt64(max(0, info.st_blocks)) * 512,
             modificationTime: Int64(info.st_mtimespec.tv_sec) * 1_000_000_000 + Int64(info.st_mtimespec.tv_nsec),
+            ownerID: info.st_uid,
             isDirectory: type == S_IFDIR,
             isSymlink: type == S_IFLNK
         )
