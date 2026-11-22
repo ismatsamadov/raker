@@ -13,7 +13,7 @@ struct RakerCommand: AsyncParsableCommand {
         commandName: "raker",
         abstract: "Find what uses storage on your Mac.",
         discussion: "Developer harness for the Raker engines. Nothing in this tool removes files.",
-        subcommands: [DiskUsage.self, Largest.self, Volume.self, Check.self]
+        subcommands: [DiskUsage.self, Largest.self, Junk.self, Explain.self, Volume.self, Check.self]
     )
 }
 
