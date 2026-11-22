@@ -68,7 +68,18 @@ struct PersonalFilesView: View {
             ProgressView(list == .downloads ? "Looking through Downloads…" : "Finding large files…")
                 .controlSize(.large)
         case .failed(let message):
-            ContentUnavailableView("Couldn't scan", systemImage: "exclamationmark.triangle", description: Text(message))
+            if list == .downloads, model.access[.downloads] == .denied {
+                ContentUnavailableView {
+                    Label("Raker can't open Downloads", systemImage: "lock")
+                } description: {
+                    Text("macOS asked whether Raker may open Downloads, and the answer was no. You can change it in System Settings › Privacy & Security › Files & Folders.")
+                } actions: {
+                    Button("Open Privacy Settings") { PrivacySettings.open(.filesAndFolders) }
+                    Button("Try Again") { model.scanDownloads() }
+                }
+            } else {
+                ContentUnavailableView("Couldn't scan", systemImage: "exclamationmark.triangle", description: Text(message))
+            }
         case .finished:
             let findings = model.findings(for: list)
             if findings.isEmpty {

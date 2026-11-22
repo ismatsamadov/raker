@@ -33,6 +33,10 @@ struct CleanupView: View {
                 if let report = model.cleanupReport {
                     CleanupReportList(report: report, selection: $model.cleanupSelection, appName: model.appName(for:)) {
                         model.addUserRule(.exclude, for: $0)
+                    } notice: {
+                        if !report.unreadable.isEmpty {
+                            ProtectedLocationsNotice(model: model, locations: report.unreadable)
+                        }
                     }
                         .safeAreaInset(edge: .bottom) {
                             CleanupActionBar(model: model)
@@ -58,11 +62,13 @@ struct CleanupView: View {
     }
 }
 
-struct CleanupReportList: View {
+struct CleanupReportList<Notice: View>: View {
     let report: RuleScanReport
     @Binding var selection: Set<String>
     let appName: (String) -> String
     let onExclude: (String) -> Void
+    /// Shown after the groups, such as a note about locations Raker couldn't read.
+    @ViewBuilder let notice: Notice
 
     var body: some View {
         List {
@@ -84,6 +90,7 @@ struct CleanupReportList: View {
                 }
             }
             Section {
+                notice
                 Text("Items that rebuild automatically start selected. Items that need review are never selected for you, and always go to the Trash.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)

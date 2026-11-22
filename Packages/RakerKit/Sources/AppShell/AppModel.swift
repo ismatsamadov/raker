@@ -158,6 +158,8 @@ public final class AppModel {
     /// What Raker knows about each protected area.
     public private(set) var access: AccessMap
     public var settingsTab: SettingsTab = .access
+    public var isShowingSkipped = false
+    public var isShowingUnreadable = false
 
     public enum SettingsTab: Hashable {
         case access

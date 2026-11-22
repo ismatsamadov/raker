@@ -172,7 +172,15 @@ struct OverviewView: View {
             explainer(title: "See what's taking up space",
                       text: "Raker reads file sizes only, on this Mac. Start with Downloads, or choose any folder from the toolbar.")
         case .failed(let message):
-            explainer(title: "Couldn't scan \(model.scope.title)", text: message)
+            if model.scope == .downloads, model.access[.downloads] == .denied {
+                VStack(alignment: .leading, spacing: Spacing.l) {
+                    explainer(title: "Raker can't open Downloads",
+                              text: "macOS asked whether Raker may open Downloads, and the answer was no. You can change it in System Settings › Privacy & Security › Files & Folders.")
+                    Button("Open Privacy Settings") { PrivacySettings.open(.filesAndFolders) }
+                }
+            } else {
+                explainer(title: "Couldn't scan \(model.scope.title)", text: message)
+            }
         }
     }
 
@@ -204,11 +212,22 @@ struct OverviewView: View {
                 InsightCard(title: "Items scanned", symbol: "checklist", tint: Palette.rebuildsAutomatically,
                             value: tree.descendantCount(of: tree.root).formatted(),
                             detail: "in \(report.duration.formatted(.units(allowed: [.seconds, .milliseconds], width: .abbreviated)))")
-                InsightCard(title: report.skipped.isEmpty ? "Everything readable" : "Skipped",
-                            symbol: report.skipped.isEmpty ? "lock.open" : "lock",
-                            tint: report.skipped.isEmpty ? Palette.rebuildsAutomatically : Palette.expert,
-                            value: report.skipped.isEmpty ? "0" : report.skipped.count.formatted(),
-                            detail: report.skipped.isEmpty ? "No locations were skipped" : "locations Raker couldn't read")
+                if report.skipped.isEmpty {
+                    InsightCard(title: "Everything readable", symbol: "lock.open", tint: Palette.rebuildsAutomatically,
+                                value: "0", detail: "No locations were skipped")
+                } else {
+                    Button {
+                        model.isShowingSkipped = true
+                    } label: {
+                        InsightCard(title: "Skipped", symbol: "lock", tint: Palette.expert,
+                                    value: report.skipped.count.formatted(), detail: "locations Raker couldn't read · Details")
+                    }
+                    .buttonStyle(.plain)
+                    .help("See what Raker couldn't read, and how to allow it")
+                    .popover(isPresented: $model.isShowingSkipped, arrowEdge: .bottom) {
+                        SkippedLocationsView(model: model, locations: report.skipped) { model.isShowingSkipped = false }
+                    }
+                }
             }
             .transition(.opacity.combined(with: .offset(y: 8)))
         }
