@@ -16,7 +16,7 @@ public struct LocationExplanation: Sendable {
     public let knownLocationIsExact: Bool
     public let owner: Owner
     public let verdict: SafetyPolicy.Verdict
-    public let measurement: Measurement?
+    public let measurement: PathMeasurement?
 }
 
 /// Explains any path, using the rule pack, folder names and the safety policy.

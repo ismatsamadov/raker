@@ -4,7 +4,7 @@ import RakerModel
 import Synchronization
 
 /// Totals for one location, measured without building a tree.
-public struct Measurement: Sendable, Hashable {
+public struct PathMeasurement: Sendable, Hashable {
     public var size: SizeEstimate
     /// Files and folders inside, plus the item itself.
     public var items: Int
@@ -22,12 +22,12 @@ public struct Measurement: Sendable, Hashable {
 
 public enum PathMeasurer {
     /// Measures a file or folder. Blocks; call it from a dedicated thread.
-    public static func measure(_ path: String, workerCount: Int = 4) -> Measurement? {
+    public static func measure(_ path: String, workerCount: Int = 4) -> PathMeasurement? {
         guard let status = try? FileStatus.of(path), !status.isSymlink else { return nil }
         let modified = status.modificationTime / 1_000_000_000
         guard status.isDirectory else {
             let size = SizeEstimate(logical: status.size, allocated: status.allocatedSize, reclaimable: status.allocatedSize)
-            return Measurement(size: size, items: 1, newestModification: modified, isPartial: false)
+            return PathMeasurement(size: size, items: 1, newestModification: modified, isPartial: false)
         }
         let accumulator = SizeAccumulator(rootPath: path, rootModification: modified)
         BulkWalker(options: .init(workerCount: workerCount)).walk(rootPath: path, sink: accumulator)
@@ -87,9 +87,9 @@ final class SizeAccumulator: WalkSink {
         }
     }
 
-    var measurement: Measurement {
+    var measurement: PathMeasurement {
         state.withLock { state in
-            Measurement(
+            PathMeasurement(
                 size: SizeEstimate(logical: state.logical, allocated: state.allocated, reclaimable: state.reclaimable),
                 items: state.items,
                 newestModification: state.newest,
