@@ -195,6 +195,7 @@ extension TrayItem.Source {
         case .largeAndOld: "Large & Old"
         case .duplicates: "Duplicate"
         case .largest: "Largest Items"
+        case .apps: "Applications"
         }
     }
 }

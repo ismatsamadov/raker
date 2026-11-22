@@ -10,6 +10,8 @@ public struct TrayItem: Codable, Sendable, Hashable, Identifiable {
         case duplicates
         /// Anything chosen while exploring the largest items.
         case largest
+        /// An app and its files.
+        case apps
     }
 
     public var finding: Finding

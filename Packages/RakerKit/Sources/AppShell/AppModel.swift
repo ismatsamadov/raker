@@ -1,3 +1,4 @@
+import AppCatalog
 import AppKit
 import CleanEngine
 import DuplicateEngine
@@ -52,6 +53,7 @@ public final class AppModel {
         case largeAndOld
         case duplicates
         case cleanup
+        case applications
         case history
 
         public var id: Self { self }
@@ -64,6 +66,7 @@ public final class AppModel {
             case .largeAndOld: "Large & Old"
             case .duplicates: "Duplicates"
             case .cleanup: "Caches & Temporary Files"
+            case .applications: "Applications"
             case .history: "Receipts"
             }
         }
@@ -76,6 +79,7 @@ public final class AppModel {
             case .largeAndOld: "clock.badge.exclamationmark"
             case .duplicates: "square.on.square"
             case .cleanup: "sparkles"
+            case .applications: "square.grid.2x2"
             case .history: "clock.arrow.circlepath"
             }
         }
@@ -378,6 +382,11 @@ public final class AppModel {
         let paths = Set(removed.map(\.path))
         downloadsFindings.removeAll { ids.contains($0.id) }
         largeFindings.removeAll { ids.contains($0.id) }
+        appFiles.removeAll { paths.contains($0.path) }
+        if let selected = selectedAppPath, paths.contains(selected) {
+            selectedAppPath = nil
+        }
+        installedApps.removeAll { paths.contains($0.path) }
         duplicateSets = duplicateSets.compactMap { set in
             let files = set.files.filter { !paths.contains($0.path) }
             return files.count > 1 ? DuplicateSet(id: set.id, size: set.size, allocatedPerCopy: set.allocatedPerCopy, files: files) : nil
@@ -567,6 +576,131 @@ public final class AppModel {
         stageDuplicates(duplicatesSelection)
     }
 
+    // MARK: Applications
+
+    public enum AppSort: String, CaseIterable, Hashable {
+        case size
+        case name
+        case lastOpened
+    }
+
+    public private(set) var appsPhase: Phase = .idle
+    public private(set) var installedApps: [AppBundleInfo] = []
+    /// Sizes of app bundles, filled in as they're measured.
+    public private(set) var appSizes: [String: UInt64] = [:]
+    public private(set) var appLastOpened: [String: Date] = [:]
+    public var appSort: AppSort = .size
+    public var appSearch = ""
+    public var selectedAppPath: String? {
+        didSet {
+            if selectedAppPath != oldValue { loadAppFiles() }
+        }
+    }
+    public private(set) var appFilesPhase: Phase = .idle
+    /// The selected app's bundle and files.
+    public private(set) var appFiles: [AppFile] = []
+    public private(set) var appFileMeasurements: [String: PathMeasurement] = [:]
+    private var appFilesTask: Task<Void, Never>?
+
+    public var selectedApp: AppBundleInfo? {
+        installedApps.first { $0.path == selectedAppPath }
+    }
+
+    /// Apps in the chosen order, filtered by the search text.
+    public var visibleApps: [AppBundleInfo] {
+        let filtered = appSearch.isEmpty ? installedApps : installedApps.filter {
+            $0.name.localizedCaseInsensitiveContains(appSearch) || $0.bundleID.localizedCaseInsensitiveContains(appSearch)
+        }
+        switch appSort {
+        case .name: return filtered
+        case .size: return filtered.sorted { (appSizes[$0.path] ?? 0) > (appSizes[$1.path] ?? 0) }
+        case .lastOpened:
+            return filtered.sorted { (appLastOpened[$0.path] ?? .distantPast) < (appLastOpened[$1.path] ?? .distantPast) }
+        }
+    }
+
+    public func isRunning(_ app: AppBundleInfo) -> Bool {
+        apps.isRunning(bundleID: app.bundleID)
+    }
+
+    /// Finds the installed apps, then their last-opened dates, then their sizes, a few at a
+    /// time so the list fills in.
+    public func loadApps() {
+        appsPhase = .scanning
+        let metadata = metadata
+        Task {
+            let found = await Task.detached(priority: .userInitiated) { AppInventory().apps() }.value
+            installedApps = found
+            appsPhase = .finished
+            appLastOpened = await Task.detached(priority: .utility) {
+                var dates: [String: Date] = [:]
+                for app in found { dates[app.path] = metadata.lastOpened(app.path) }
+                return dates
+            }.value
+            for start in stride(from: 0, to: found.count, by: 6) {
+                let bundles = found[start ..< min(start + 6, found.count)].map {
+                    AppFile(path: $0.path, kind: .application, confidence: .high, isShared: false, reason: .bundle)
+                }
+                let measured = await Task.detached(priority: .utility) { AppFile.measure(bundles) }.value
+                for (path, measurement) in measured {
+                    appSizes[path] = measurement.size.allocated
+                }
+            }
+        }
+    }
+
+    /// Finds and measures the selected app's files.
+    private func loadAppFiles() {
+        appFilesTask?.cancel()
+        appFiles = []
+        appFileMeasurements = [:]
+        guard let app = selectedApp else {
+            appFilesPhase = .idle
+            return
+        }
+        appFilesPhase = .scanning
+        let others = installedApps
+        let rules = (try? rulePack.get().rules) ?? []
+        appFilesTask = Task {
+            let files = await Task.detached(priority: .userInitiated) {
+                AssociatedFileFinder(otherApps: others, rules: rules).files(for: app, identity: AppIdentity.of(app))
+            }.value
+            guard !Task.isCancelled, selectedAppPath == app.path else { return }
+            appFiles = files
+            appFilesPhase = .finished
+            let measured = await Task.detached(priority: .userInitiated) { AppFile.measure(files) }.value
+            guard !Task.isCancelled, selectedAppPath == app.path else { return }
+            appFileMeasurements = measured
+        }
+    }
+
+    /// Finding IDs of the selected app's files that are staged.
+    public var appsSelection: Set<String> {
+        get { tray.ids(from: .apps) }
+        set { stage(newValue, from: .apps, among: appFindings()) }
+    }
+
+    private func appFindings() -> [Finding] {
+        guard let app = selectedApp else { return [] }
+        return appFiles.compactMap { $0.finding(for: app, size: appFileMeasurements[$0.path]?.size) }
+    }
+
+    /// Kinds of files a reset removes: the app and its data stay.
+    public static let resettableKinds: Set<AppFile.Kind> = [.preferences, .caches, .savedState, .webData, .logs, .temporary]
+
+    /// Stages the app and every file that's certainly its own, then opens the review.
+    public func stageUninstall() {
+        guard selectedApp?.isRemovable == true else { return }
+        appsSelection.formUnion(appFiles.filter(\.isPreselected).map { "apps:\($0.path)" })
+        isReviewingTray = true
+    }
+
+    /// Stages the app's settings, caches, saved windows and logs, keeping the app and its data.
+    public func stageReset() {
+        appsSelection.formUnion(appFiles.filter { $0.isPreselected && Self.resettableKinds.contains($0.kind) }.map { "apps:\($0.path)" })
+        isReviewingTray = true
+    }
+
     // MARK: Inspector
 
     public var isShowingInspector = true
@@ -586,7 +720,7 @@ public final class AppModel {
     public var hasInspector: Bool {
         switch selection ?? .overview {
         case .cleanup, .downloads, .largeAndOld, .duplicates, .largest: true
-        case .overview, .history: false
+        case .overview, .applications, .history: false
         }
     }
 
@@ -610,7 +744,7 @@ public final class AppModel {
         case .downloads: return downloadsFindings.first { $0.id == id }
         case .largeAndOld: return largeFindings.first { $0.id == id }
         case .duplicates: return duplicateFinding(at: id)
-        case .largest, .overview, .history: return nil
+        case .largest, .overview, .applications, .history: return nil
         }
     }
 
@@ -650,7 +784,7 @@ public final class AppModel {
             } else if canStageFromExplorer(finding) {
                 updateTray { $0.stage(TrayItem(finding: finding, source: .largest)) }
             }
-        case .overview, .history: break
+        case .overview, .applications, .history: break
         }
     }
 
