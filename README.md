@@ -4,7 +4,7 @@ Clear the clutter. Keep what matters.
 
 Raker is a native macOS app that shows what uses your storage, explains every item, and removes only what you approve, with a receipt you can undo. It's open source and every feature is free.
 
-> **Status:** early development (milestone M0, foundations). The scanning engine, safety policy, a command-line harness and the first SwiftUI screens work; nothing removes files yet.
+> **Status:** early development (milestone M0, foundations). The scanning engine, the safety policy, the rule engine with a baseline pack (caches, temporary files, logs and developer caches, each explained), a command-line harness and the first SwiftUI screens work. Nothing removes files yet.
 
 ## Documents
 
@@ -42,6 +42,8 @@ Scripts/test.sh
 cd Packages/RakerKit
 swift run raker du ~/Downloads --depth 2
 swift run raker largest /Applications --count 10
+swift run raker junk                        # caches, temporary files and logs, explained
+swift run raker explain ~/Library/Caches    # what is this, who owns it, is it safe?
 swift run raker volume
 swift run raker check ~/Library/Caches/com.example ~/Documents/file.pdf
 
