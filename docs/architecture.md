@@ -1000,6 +1000,7 @@ Navigation is a typed `Route` enum, so notifications, the menu bar, Shortcuts, F
 
 - A floating glass capsule at the bottom of the window collects items from anywhere: list rows, Space Lens segments, duplicate sets. Items fly into it with a matched-geometry animation.
 - It shows the item count, selected size and reclaimable size, persists across sections and relaunches, and re-validates staged items when the app reopens.
+- It is the one selection behind every list: checking an item anywhere stages it, and each section's checkboxes show what's staged from it. Staged duplicates always name their set's current kept copy, and the kept copy is never staged. Excluding or locking an item takes it out. The Tray is stored in the database, and on launch the executor's pre-flight checks drop items that changed, disappeared or were excluded while Raker was closed.
 - Clicking it opens the review sheet, and Clean starts the confirmation. On Force Touch trackpads, dropping an item into it gives a haptic tick (`NSHapticFeedbackManager`).
 
 ### 11.8 Confirmation and receipt
@@ -1144,7 +1145,7 @@ Plain language and concrete numbers, without fear. Every finding has a short tit
 | Data | Store | Location |
 |---|---|---|
 | Preferences | `UserDefaults` | the app's domain |
-| History, journal, receipts, exclusions, locked originals, snapshot index, app metadata, update cache | SQLite through GRDB (WAL, migrations) | `~/Library/Application Support/<bundle-id>/raker.sqlite` |
+| History, journal, receipts, exclusions, locked originals, the Tray, snapshot index, app metadata, update cache | SQLite through GRDB (WAL, migrations) | `~/Library/Application Support/<bundle-id>/raker.sqlite` |
 | Disk-tree snapshots | versioned binary files, LZFSE-compressed | `~/Library/Application Support/<bundle-id>/Snapshots/<volume-uuid>/` |
 | Rule packs | signed JSON | `~/Library/Application Support/<bundle-id>/Rules/`, plus the bundled baseline |
 | Thumbnails and icons | disposable | `~/Library/Caches/<bundle-id>/` |
