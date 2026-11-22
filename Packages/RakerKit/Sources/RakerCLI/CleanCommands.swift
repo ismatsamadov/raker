@@ -34,7 +34,9 @@ struct Clean: AsyncParsableCommand {
 
     func run() async throws {
         let apps = LaunchServicesAppDirectory()
-        let report = await RuleScanner(pack: try loadPack(), apps: apps).scan()
+        let rules = StoredRules.load()
+        let report = await RuleScanner(pack: try loadPack(), apps: apps, exclusions: rules.exclusions,
+                                       lockedOriginals: rules.lockedOriginals).scan()
         let findings = report.findings.filter { $0.preselected || (includeReview && $0.safety == .review) }
         guard !findings.isEmpty else {
             print("Nothing to clean.")
@@ -47,7 +49,8 @@ struct Clean: AsyncParsableCommand {
             spaceBefore: try? VolumeInfo.space(containing: NSHomeDirectory())
         )
         let journal = execute ? try JournalStore.open() : nil
-        let executor = CleanupExecutor(apps: apps, journal: journal)
+        let executor = CleanupExecutor(exclusions: rules.exclusions, lockedOriginals: rules.lockedOriginals,
+                                       apps: apps, journal: journal)
         printPreview(plan: plan, checks: executor.preview(plan), apps: apps)
 
         guard execute else {

@@ -26,7 +26,9 @@ struct Junk: AsyncParsableCommand {
 
     func run() async throws {
         let pack = try loadPack()
-        let report = await RuleScanner(pack: pack, apps: apps).scan()
+        let rules = StoredRules.load()
+        let report = await RuleScanner(pack: pack, apps: apps, exclusions: rules.exclusions,
+                                       lockedOriginals: rules.lockedOriginals).scan()
         if json {
             try Output.printJSON(JunkJSON(report: report))
             return

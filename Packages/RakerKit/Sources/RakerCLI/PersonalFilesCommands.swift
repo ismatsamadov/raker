@@ -66,7 +66,9 @@ struct Large: AsyncParsableCommand {
 
 private enum PersonalFiles {
     static func finder() -> PersonalFileFinder {
-        PersonalFileFinder(metadata: SystemFileMetadata(), installedAppNames: ApplicationsFolder.installedAppNames())
+        let rules = StoredRules.load()
+        return PersonalFileFinder(metadata: SystemFileMetadata(), installedAppNames: ApplicationsFolder.installedAppNames(),
+                                  exclusions: rules.exclusions, lockedOriginals: rules.lockedOriginals)
     }
 
     static func print(_ findings: [Finding]) {

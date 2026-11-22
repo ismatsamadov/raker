@@ -25,7 +25,8 @@ struct Dupes: AsyncParsableCommand {
         }
         let report = try await Scanning.run(ScanScope(path: path), quiet: false)
         let showProgress = isatty(STDERR_FILENO) == 1
-        let finder = DuplicateFinder(options: .init(minimumSize: minimumKB * 1_000))
+        let rules = StoredRules.load()
+        let finder = DuplicateFinder(options: .init(minimumSize: minimumKB * 1_000, exclusions: rules.exclusions))
         let sets = await finder.find(in: report.tree) { progress in
             guard showProgress, progress.filesToHash > 0 else { return }
             let line = "Comparing \(progress.filesHashed.formatted()) of \(progress.filesToHash.formatted()) files…"
@@ -39,7 +40,7 @@ struct Dupes: AsyncParsableCommand {
         }
         var total: UInt64 = 0
         for set in sets {
-            let keeper = strategy.keeper(in: set)
+            let keeper = strategy.keeper(in: set, locked: rules.lockedOriginals)
             let frees = set.reclaimable(keeping: keeper.path)
             total &+= frees
             let note = set.sharesAllData ? "copies share their data, frees nothing" : "frees \(ByteCount(frees).formatted)"
