@@ -3,6 +3,7 @@ import ArgumentParser
 import Foundation
 import RakerFoundation
 import RakerModel
+import SystemKit
 
 // MARK: - apps
 
@@ -74,6 +75,46 @@ struct AppFiles: AsyncParsableCommand {
         let total = files.reduce(UInt64(0)) { $0 &+ (sizes[$1.path]?.size.allocated ?? 0) }
         let chosen = files.filter(\.isPreselected).reduce(UInt64(0)) { $0 &+ (sizes[$1.path]?.size.allocated ?? 0) }
         print("\n\(files.count) items, \(ByteCount(total).formatted). Uninstalling would choose \(ByteCount(chosen).formatted). Nothing was changed.")
+    }
+}
+
+// MARK: - leftovers
+
+struct LeftoverFiles: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "leftovers",
+        abstract: "List files left behind by apps that are no longer installed.",
+        discussion: """
+        Only what macOS knew as an app counts: one that had a sandbox or saved windows, or a \
+        background agent whose program is gone. Read-only. ✓ marks what cleaning would choose \
+        for you: leftovers no installed app could use.
+        """
+    )
+
+    func run() async throws {
+        let groups = await Task.detached {
+            let installed = AppInventory().apps().map(AppIdentity.of)
+            return LeftoverFinder(apps: LaunchServicesAppDirectory(), installed: installed).leftovers()
+        }.value
+        let files = groups.flatMap(\.files)
+        let sizes = await Task.detached { AppFile.measure(files) }.value
+        func size(_ group: Leftovers) -> UInt64 {
+            group.files.reduce(UInt64(0)) { $0 &+ (sizes[$1.path]?.size.allocated ?? 0) }
+        }
+
+        for group in groups.sorted(by: { size($0) > size($1) }) {
+            print(Output.row(group.bundleID, size: size(group), detail: group.files.count == 1 ? "1 item" : "\(group.files.count) items"))
+            for file in group.files {
+                let mark = file.isPreselected ? "✓" : " "
+                var detail = file.kind.title
+                if file.isShared { detail += ", may be shared" }
+                if sizes[file.path]?.isRefused == true { detail += ", not readable without Full Disk Access" }
+                print(Output.row("  \(mark) \(Text.abbreviated(file.path))", size: sizes[file.path]?.size.allocated ?? 0, detail: detail))
+            }
+        }
+        let total = files.reduce(UInt64(0)) { $0 &+ (sizes[$1.path]?.size.allocated ?? 0) }
+        let chosen = files.filter(\.isPreselected).reduce(UInt64(0)) { $0 &+ (sizes[$1.path]?.size.allocated ?? 0) }
+        print("\n\(groups.count) removed apps, \(files.count) items, \(ByteCount(total).formatted). Cleaning would choose \(ByteCount(chosen).formatted). Nothing was changed.")
     }
 }
 
