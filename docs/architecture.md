@@ -254,7 +254,7 @@ Raker.app/Contents/
 | `RuleEngine` | engine | rule schema, pack loading and Ed25519 verification, pattern matching, handler registry | M0 |
 | `ScanEngine` | engine | scan sessions, traversal consumers, skipped-location reporting | M0 |
 | `SpaceIndex` | engine | compact size tree, snapshots, diffs ("What grew?"), incremental refresh | R1 |
-| `DuplicateEngine` | engine | exact duplicates, which-copy-stays strategies, folder comparison | R1 |
+| `DuplicateEngine` | engine | exact duplicates, which-copy-stays strategies, folder comparison | M0 |
 | `MediaSimilarity` | engine | similar and low-quality photos (Vision) | R4 |
 | `AppCatalog` | engine | app inventory, associated files, leftovers, reset, update checks, Trash-watcher logic | R2 |
 | `SystemInsights` | engine | System Data explainer, snapshots, device backups, Mail and Messages, background items, extensions | R2 |
