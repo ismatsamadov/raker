@@ -31,8 +31,9 @@ public struct LocationExplainer: Sendable {
         self.apps = apps
     }
 
-    /// Blocks while measuring; call it off the main thread.
-    public func explain(_ path: String) -> LocationExplanation {
+    /// - Parameter measuring: Measure the location too. Measuring blocks, so call it off the
+    ///   main thread; without it, explaining is quick.
+    public func explain(_ path: String, measuring: Bool = true) -> LocationExplanation {
         let rule = pack.activeRules.first { rule in
             rule.targets.contains { covers($0, path: path) }
         }
@@ -45,7 +46,7 @@ public struct LocationExplainer: Sendable {
             knownLocationIsExact: known?.isExact ?? false,
             owner: owner,
             verdict: SafetyPolicy(homeDirectory: environment.home).evaluate(path),
-            measurement: PathMeasurer.measure(path)
+            measurement: measuring ? PathMeasurer.measure(path) : nil
         )
     }
 

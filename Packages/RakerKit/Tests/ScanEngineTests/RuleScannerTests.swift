@@ -195,5 +195,10 @@ struct LocationExplainerTests {
         let keychains = explainer.explain(home.path("home/Library/Keychains"))
         #expect(keychains.knownLocationIsExact)
         #expect(keychains.verdict == .denied(.credentials))
+
+        // Without measuring, the answer is the same, just without sizes.
+        let quick = explainer.explain(home.path("home/Library/Caches/go-build/aa"), measuring: false)
+        #expect(quick.rule?.id == "go")
+        #expect(quick.measurement == nil)
     }
 }
