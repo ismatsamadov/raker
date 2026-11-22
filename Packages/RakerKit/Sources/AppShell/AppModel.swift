@@ -347,6 +347,14 @@ public final class AppModel {
             if sources.contains(.cleanup) {
                 scanCleanup(preselect: false)
             }
+            // The ring and Largest Items show the scanned folder; keep them true.
+            let removed = receipt.items.filter { item in
+                if case .movedToTrash = item.outcome { return true }
+                return item.outcome == .deleted
+            }
+            if let root = report?.tree.rootPath, removed.contains(where: { $0.path == root || $0.path.hasPrefix(root + "/") }) {
+                startScan()
+            }
         }
     }
 
