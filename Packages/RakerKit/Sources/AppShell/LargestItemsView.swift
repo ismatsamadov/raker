@@ -55,6 +55,12 @@ struct LargestItemsView: View {
                         Text(row.name)
                             .lineLimit(1)
                             .truncationMode(.middle)
+                        if model.tray.contains("largest:\(row.path)") {
+                            Image(systemName: "tray.full.fill")
+                                .font(.caption)
+                                .foregroundStyle(.tint)
+                                .help("In the Tray")
+                        }
                     }
                 }
                 .width(min: 220, ideal: 360)
@@ -83,6 +89,9 @@ struct LargestItemsView: View {
                 Button("Reveal in Finder") { reveal(indices, in: tree) }
                 Button("Quick Look") { preview(indices.first, in: tree) }
                 Divider()
+                let staged = !indices.isEmpty && indices.allSatisfy { model.tray.contains("largest:\(tree.path(of: $0))") }
+                Button(staged ? "Take Out of the Tray" : "Add to Tray") { model.setStaged(indices, !staged) }
+                    .disabled(indices.isEmpty)
                 Button("Never Suggest This") {
                     for index in indices { model.addUserRule(.exclude, for: tree.path(of: index)) }
                 }
@@ -94,10 +103,7 @@ struct LargestItemsView: View {
                     preview(index, in: tree)
                 }
             }
-            .onKeyPress(.space) {
-                preview(model.largestSelection.first, in: tree)
-                return .handled
-            }
+            .reviewKeyboard(model)
         }
     }
 

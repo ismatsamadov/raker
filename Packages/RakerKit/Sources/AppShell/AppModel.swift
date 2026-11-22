@@ -89,15 +89,19 @@ public final class AppModel {
     }
 
     public var selection: Section? = .overview {
-        didSet { loadThumbnail() }
+        didSet { inspect() }
     }
     public var scope: ScanScopeChoice = .downloads
 
     // View state lives in the model rather than in views, so screens stay declarative
     // and their state is testable.
     /// The folder shown in Largest Items.
-    public var browsedIndex: SizeTree.Index?
-    public var largestSelection: Set<SizeTree.Index> = []
+    public var browsedIndex: SizeTree.Index? {
+        didSet { inspectLocation() }
+    }
+    public var largestSelection: Set<SizeTree.Index> = [] {
+        didSet { inspectLocation() }
+    }
     public var previewURL: URL?
     public var isChoosingFolder = false
 
@@ -573,20 +577,32 @@ public final class AppModel {
     /// Whether the current section has rows to inspect.
     public var hasInspector: Bool {
         switch selection ?? .overview {
-        case .cleanup, .downloads, .largeAndOld, .duplicates: true
-        case .overview, .largest, .history: false
+        case .cleanup, .downloads, .largeAndOld, .duplicates, .largest: true
+        case .overview, .history: false
         }
     }
 
+    /// The file or folder in focus in Largest Items: the selected row, or the folder shown.
+    public var inspectedLocation: SizeTree.Index? {
+        guard let tree = report?.tree else { return nil }
+        return largestSelection.first ?? browsedIndex ?? tree.root
+    }
+
+    /// What Raker knows about the location in focus in Largest Items.
+    public private(set) var locationExplanation: LocationExplanation?
+    /// The location in focus as a finding, so it can be staged like anything else.
+    private var explorerFinding: Finding?
+
     /// The finding in focus in the current section.
     public var inspectedFinding: Finding? {
+        if selection == .largest { return explorerFinding }
         guard let section = selection, let id = inspectedIDs[section] else { return nil }
         switch section {
         case .cleanup: return cleanupReport?.findings.first { $0.id == id }
         case .downloads: return downloadsFindings.first { $0.id == id }
         case .largeAndOld: return largeFindings.first { $0.id == id }
         case .duplicates: return duplicateFinding(at: id)
-        case .overview, .largest, .history: return nil
+        case .largest, .overview, .history: return nil
         }
     }
 
@@ -620,8 +636,97 @@ public final class AppModel {
         case .downloads: downloadsSelection.formSymmetricDifference([finding.id])
         case .largeAndOld: largeSelection.formSymmetricDifference([finding.id])
         case .duplicates: duplicatesSelection.formSymmetricDifference([finding.path])
-        case .overview, .largest, .history: break
+        case .largest:
+            if tray.contains(finding.id) {
+                updateTray { $0.unstage(finding.id) }
+            } else if canStageFromExplorer(finding) {
+                updateTray { $0.stage(TrayItem(finding: finding, source: .largest)) }
+            }
+        case .overview, .history: break
         }
+    }
+
+    /// Whether something found while exploring may go in the Tray: only what the safety
+    /// policy lets a person choose, and never synced items.
+    public func canStageFromExplorer(_ finding: Finding) -> Bool {
+        !finding.isSynced && userRulePolicy.evaluate(finding.path).permitsUserSelection
+    }
+
+    /// Stages or unstages several rows of Largest Items at once.
+    public func setStaged(_ indices: Set<SizeTree.Index>, _ staged: Bool) {
+        guard let tree = report?.tree else { return }
+        let findings = indices.compactMap { makeExplorerFinding(tree: tree, index: $0, explanation: explain(tree.path(of: $0))) }
+        updateTray { tray in
+            for finding in findings {
+                if !staged {
+                    tray.unstage(finding.id)
+                } else if canStageFromExplorer(finding) {
+                    tray.stage(TrayItem(finding: finding, source: .largest))
+                }
+            }
+        }
+    }
+
+    private func inspect() {
+        selection == .largest ? inspectLocation() : loadThumbnail()
+    }
+
+    /// Explains the location in focus in Largest Items and prepares it for staging.
+    private func inspectLocation() {
+        guard selection == .largest, let tree = report?.tree, let index = inspectedLocation else {
+            locationExplanation = nil
+            explorerFinding = nil
+            return
+        }
+        let path = tree.path(of: index)
+        if locationExplanation?.path != path {
+            locationExplanation = explain(path)
+        }
+        explorerFinding = makeExplorerFinding(tree: tree, index: index, explanation: locationExplanation)
+        loadThumbnail()
+    }
+
+    /// The answer to "what is this?", without measuring: the tree already has the sizes.
+    private func explain(_ path: String) -> LocationExplanation? {
+        guard case .success(let pack) = rulePack else { return nil }
+        return LocationExplainer(pack: pack, apps: apps).explain(path, measuring: false)
+    }
+
+    /// A finding for something chosen while exploring. It's the person's own choice, so it
+    /// always goes to the Trash, and the executor checks the policy allows choosing it.
+    private func makeExplorerFinding(tree: SizeTree, index: SizeTree.Index, explanation: LocationExplanation?) -> Finding? {
+        let path = tree.path(of: index)
+        guard let status = try? FileStatus.of(path), !status.isSymlink else { return nil }
+        var evidence: [Evidence] = []
+        if let owner = explanation?.owner {
+            switch owner.status {
+            case .installed: evidence.append(.owner(name: owner.name, bundleID: owner.bundleID))
+            case .notInstalled: evidence.append(.ownerNotInstalled(bundleID: owner.bundleID ?? owner.name))
+            case .system, .unknown: break
+            }
+        }
+        var constraints: [Constraint] = []
+        if tree.flags(of: index).contains(.dataless) || userRulePolicy.evaluate(path) == .selectionOnly(.syncedFolder) {
+            constraints.append(.synced(provider: "cloud"))
+        }
+        let description: String
+        if let rule = explanation?.rule {
+            description = "\(rule.title). \(rule.explanation)"
+        } else if let known = explanation?.knownLocation, explanation?.knownLocationIsExact == true {
+            description = "\(known.title). \(known.explanation)"
+        } else {
+            description = "You chose it in Largest Items."
+        }
+        return Finding(
+            id: "largest:\(path)",
+            subject: .file(FileRef(path: path, identity: status.identity)),
+            category: "explore",
+            safety: .review,
+            size: tree.size(of: index),
+            evidence: evidence,
+            explanation: description,
+            constraints: constraints
+        )
     }
 
     /// A finding for one copy in a duplicate set, as staging it would create.

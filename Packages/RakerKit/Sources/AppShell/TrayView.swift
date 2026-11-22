@@ -194,6 +194,7 @@ extension TrayItem.Source {
         case .downloads: "Downloads"
         case .largeAndOld: "Large & Old"
         case .duplicates: "Duplicate"
+        case .largest: "Largest Items"
         }
     }
 }

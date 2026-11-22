@@ -74,8 +74,14 @@ public struct RakerRootView: View {
                     get: { model.isShowingInspector && model.hasInspector },
                     set: { if model.hasInspector { model.isShowingInspector = $0 } }
                 )) {
-                    InspectorView(model: model)
-                        .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
+                    Group {
+                        if model.selection == .largest {
+                            LocationInspectorView(model: model)
+                        } else {
+                            InspectorView(model: model)
+                        }
+                    }
+                    .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
                 }
                 .toolbar {
                     if model.hasInspector {

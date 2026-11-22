@@ -109,6 +109,49 @@ struct TrayModelTests {
         #expect(relaunched.tray.items.map(\.finding.path) == [staged[1]])
     }
 
+    @Test("Anything found while exploring can be staged, unless the policy refuses it")
+    func explorerStaging() async throws {
+        let comparison = try await Comparison()
+        defer { comparison.remove() }
+        let model = comparison.model
+        let tree = try #require(model.report?.tree)
+        let unique = try #require(tree.largestChildren(of: tree.root, limit: 10).first { tree.name(of: $0) == "unique.bin" })
+        model.selection = .largest
+        model.largestSelection = [unique]
+
+        let finding = try #require(model.inspectedFinding)
+        #expect(finding.id == "largest:\(comparison.folder)/unique.bin")
+        #expect(model.locationExplanation?.path == finding.path)
+        // A person's own choice: it goes to the Trash, and isn't presented as a rule's finding.
+        #expect(finding.safety == .review)
+        #expect(!finding.evidence.contains { if case .rule = $0 { true } else { false } })
+        model.toggleStaged(finding)
+        #expect(model.tray.items.map(\.source) == [.largest])
+        model.toggleStaged(finding)
+        #expect(model.tray.isEmpty)
+
+        model.addUserRule(.exclude, for: finding.path)
+        #expect(!model.canStageFromExplorer(finding))
+        model.toggleStaged(finding)
+        #expect(model.tray.isEmpty)
+    }
+
+    @Test("Several rows of Largest Items can be staged at once")
+    func explorerBulk() async throws {
+        let comparison = try await Comparison()
+        defer { comparison.remove() }
+        let model = comparison.model
+        let tree = try #require(model.report?.tree)
+        let rows = Set(tree.largestChildren(of: tree.root, limit: 10))
+        model.selection = .largest
+
+        model.setStaged(rows, true)
+        #expect(model.tray.count == 4)
+        #expect(model.tray.items.allSatisfy { $0.source == .largest })
+        model.setStaged(rows, false)
+        #expect(model.tray.isEmpty)
+    }
+
     @Test("Clearing and unstaging take items out of the Tray only")
     func clearing() async throws {
         let comparison = try await Comparison()
