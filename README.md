@@ -4,7 +4,7 @@ Clear the clutter. Keep what matters.
 
 Raker is a native macOS app that shows what uses your storage, explains every item, and removes only what you approve, with a receipt you can undo. It's open source and every feature is free.
 
-> **Status:** early development (milestone M0, foundations). The scanning engine, the safety policy, the rule engine with a baseline pack (caches, temporary files, logs and developer caches, each explained), the cleanup engine (items that rebuild automatically are deleted, everything else goes to the Trash, with receipts, history and restore), Downloads & Installers and Large & Old (with where files came from and when they were last opened), exact duplicates (one copy of each always stays), a command-line harness and the first SwiftUI screens work.
+> **Status:** early development (milestone M0, foundations). The scanning engine, the safety policy, the rule engine with a baseline pack (caches, temporary files, logs and developer caches, each explained), the cleanup engine (items that rebuild automatically are deleted, everything else goes to the Trash, with receipts, history and restore), Downloads & Installers and Large & Old (with where files came from and when they were last opened), exact duplicates (one copy of each always stays), exclusions and locked originals (shared by the app and the CLI), a command-line harness and the first SwiftUI screens work.
 
 ## Documents
 
@@ -50,6 +50,8 @@ swift run raker explain ~/Library/Caches    # what is this, who owns it, is it s
 swift run raker clean                       # shows the plan; add --execute to clean
 swift run raker history                     # past cleanups and their receipts
 swift run raker restore <id>                # put back what a cleanup moved to the Trash
+swift run raker exclude ~/Projects          # never suggest anything there (--lock: locked original)
+swift run raker exclusions                  # list them; --remove <path> to drop one
 swift run raker volume
 swift run raker check ~/Library/Caches/com.example ~/Documents/file.pdf
 
