@@ -1,6 +1,8 @@
+import CleanEngine
 import FileSystemKit
 import Foundation
 import Observation
+import Persistence
 import RakerFoundation
 import RakerModel
 import RuleEngine
@@ -101,9 +103,20 @@ public final class AppModel {
     public private(set) var volumeName = "Macintosh HD"
     public private(set) var cleanupPhase: Phase = .idle
     public private(set) var cleanupReport: RuleScanReport?
+    /// Finding IDs chosen for cleaning; starts with the items that rebuild automatically.
+    public var cleanupSelection: Set<String> = []
+    /// Skip the Trash for items that rebuild automatically. Everything else always goes to the Trash.
+    public var deleteRegenerable = true
+    public var isConfirmingCleanup = false
+    public var isShowingReceipt = false
+    public private(set) var isCleaning = false
+    public private(set) var cleanupProgress: CleanupExecutor.Progress?
+    public private(set) var lastReceipt: CleanupReceipt?
+    public private(set) var receipts: [CleanupReceipt] = []
 
     private let engine = ScanEngine()
     private let apps = LaunchServicesAppDirectory()
+    private let journal = try? JournalStore.open()
     private let rulePack = Result { () throws(RulePackError) -> RulePack in try RulePackLoader.baseline() }
     private var scanTask: Task<Void, Never>?
     /// Ignores progress from a scan that has since been replaced.
@@ -111,6 +124,7 @@ public final class AppModel {
 
     public init() {
         refreshVolume()
+        refreshHistory()
     }
 
     public var isScanning: Bool { phase == .scanning }
@@ -175,8 +189,68 @@ public final class AppModel {
         Task {
             let report = await scanner.scan()
             cleanupReport = report
+            cleanupSelection = Set(report.findings.filter(\.preselected).map(\.id))
             cleanupPhase = .finished
         }
+    }
+
+    // MARK: Cleaning
+
+    /// The findings currently selected for cleaning.
+    public var selectedFindings: [Finding] {
+        cleanupReport?.findings.filter { cleanupSelection.contains($0.id) } ?? []
+    }
+
+    /// Apps that must quit before some selected items can be cleaned.
+    public var appsBlockingSelection: [String] {
+        let bundleIDs = Set(selectedFindings.flatMap(\.constraints).compactMap { constraint -> String? in
+            if case .requiresQuit(let bundleID) = constraint, apps.isRunning(bundleID: bundleID) { return bundleID }
+            return nil
+        })
+        return bundleIDs.map(appName(for:)).sorted()
+    }
+
+    /// Cleans the selected findings, then shows the receipt and scans again.
+    public func cleanSelected() {
+        let findings = selectedFindings
+        guard !findings.isEmpty, !isCleaning else { return }
+        isConfirmingCleanup = false
+        isCleaning = true
+        let plan = PlanBuilder.plan(
+            for: findings,
+            deleteRegenerable: deleteRegenerable,
+            spaceBefore: try? VolumeInfo.space(containing: NSHomeDirectory())
+        )
+        let executor = CleanupExecutor(apps: apps, journal: journal)
+        Task {
+            let receipt = await executor.execute(plan) { progress in
+                Task { @MainActor in self.cleanupProgress = progress }
+            }
+            isCleaning = false
+            cleanupProgress = nil
+            lastReceipt = receipt
+            isShowingReceipt = true
+            refreshVolume()
+            refreshHistory()
+            scanCleanup()
+        }
+    }
+
+    /// Puts back everything a cleanup moved to the Trash.
+    public func restore(_ receipt: CleanupReceipt) {
+        let restorer = Restorer(journal: journal)
+        Task {
+            _ = await Task.detached(priority: .userInitiated) { restorer.restoreAll(in: receipt) }.value
+            refreshHistory()
+            if lastReceipt?.id == receipt.id {
+                lastReceipt = receipts.first { $0.id == receipt.id }
+            }
+            refreshVolume()
+        }
+    }
+
+    public func refreshHistory() {
+        receipts = (try? journal?.receipts()) ?? []
     }
 
     public func refreshVolume() {
