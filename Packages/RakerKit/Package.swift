@@ -10,6 +10,7 @@ let package = Package(
         .library(name: "SafetyPolicy", targets: ["SafetyPolicy"]),
         .library(name: "FileSystemKit", targets: ["FileSystemKit"]),
         .library(name: "SystemKit", targets: ["SystemKit"]),
+        .library(name: "RuleEngine", targets: ["RuleEngine"]),
         .library(name: "SpaceIndex", targets: ["SpaceIndex"]),
         .library(name: "ScanEngine", targets: ["ScanEngine"]),
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
@@ -32,6 +33,7 @@ let package = Package(
         .target(name: "SystemKit", dependencies: ["RakerModel"]),
 
         // Engines
+        .target(name: "RuleEngine", dependencies: ["RakerFoundation", "RakerModel", "SafetyPolicy"]),
         .target(name: "SpaceIndex", dependencies: ["RakerFoundation", "RakerModel", "FileSystemKit"]),
         .target(name: "ScanEngine", dependencies: ["RakerFoundation", "RakerModel", "FileSystemKit", "SpaceIndex"]),
 
@@ -61,6 +63,7 @@ let package = Package(
         .testTarget(name: "RakerFoundationTests", dependencies: ["RakerFoundation"]),
         .testTarget(name: "SafetyPolicyTests", dependencies: ["SafetyPolicy"]),
         .testTarget(name: "FileSystemKitTests", dependencies: ["FileSystemKit", "RakerFoundation"]),
+        .testTarget(name: "RuleEngineTests", dependencies: ["RuleEngine", "RakerModel"]),
         .testTarget(name: "ScanEngineTests", dependencies: ["ScanEngine", "SpaceIndex", "FileSystemKit"]),
         .testTarget(name: "VisualizationKitTests", dependencies: ["VisualizationKit"]),
     ]
