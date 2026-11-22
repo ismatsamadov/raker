@@ -54,7 +54,7 @@ public struct RakerRootView: View {
         case .cleanup:
             CleanupView(model: model)
         case .history:
-            PlaceholderView(section: section, message: "Every cleanup, what moved where, and how free space changed. Restore items while they're in the Trash.")
+            HistoryView(model: model)
         }
     }
 }
