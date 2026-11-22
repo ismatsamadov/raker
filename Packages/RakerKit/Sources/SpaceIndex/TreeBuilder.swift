@@ -14,9 +14,11 @@ public final class TreeBuilder: WalkSink {
     }
 
     public func begin(rootPath: String) -> UInt32 {
-        storage.withLock { storage in
+        // The walk reads what's inside the root; the root's own date comes from the root.
+        let modified = (try? FileStatus.of(rootPath)).map { $0.modificationTime / 1_000_000_000 } ?? 0
+        return storage.withLock { storage in
             storage = Storage()
-            storage.appendRoot(name: rootPath)
+            storage.appendRoot(name: rootPath, modified: modified)
             return 0
         }
     }
@@ -70,7 +72,7 @@ struct Storage: ~Copyable {
     var linkedFileIDs: Set<UInt64> = []
     var skipped: [SkippedLocation] = []
 
-    mutating func appendRoot(name: String) {
+    mutating func appendRoot(name: String, modified: Int64) {
         appendName(Array(name.utf8)[...])
         parents.append(.max)
         childStarts.append(0)
@@ -80,7 +82,7 @@ struct Storage: ~Copyable {
         logical.append(0)
         allocated.append(0)
         reclaimable.append(0)
-        modificationTimes.append(0)
+        modificationTimes.append(modified)
     }
 
     mutating func append(_ batch: EntryBatch, under parent: UInt32, descend: [Int]) -> [UInt32] {

@@ -45,6 +45,19 @@ struct ScanEngineTests {
         #expect(tree.size(of: tree.root).reclaimable == 0)
     }
 
+    @Test("Dates the root folder too, not only what's inside it")
+    func rootDate() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.file("a.txt", bytes: 10)
+        let lastWeek = Date(timeIntervalSinceNow: -7 * 86_400)
+        try FileManager.default.setAttributes([.modificationDate: lastWeek], ofItemAtPath: fixture.path)
+
+        let tree = try await ScanEngine().scan(ScanScope(path: fixture.path)).tree
+
+        #expect(abs(tree.modificationDate(of: tree.root).timeIntervalSince(lastWeek)) < 2)
+    }
+
     @Test("Lists the largest files first")
     func largestFiles() async throws {
         let fixture = try Fixture()
