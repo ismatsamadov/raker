@@ -101,5 +101,6 @@ let package = Package(
             dependencies: ["DuplicateEngine", "ScanEngine", "SpaceIndex", "FileSystemKit", "RakerModel"]
         ),
         .testTarget(name: "VisualizationKitTests", dependencies: ["VisualizationKit"]),
+        .testTarget(name: "AppShellTests", dependencies: ["AppShell", "Persistence", "RakerModel", "FileSystemKit"]),
     ]
 )

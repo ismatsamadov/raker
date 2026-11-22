@@ -106,8 +106,6 @@ public final class AppModel {
     public private(set) var volumeName = "Macintosh HD"
     public private(set) var cleanupPhase: Phase = .idle
     public private(set) var cleanupReport: RuleScanReport?
-    /// Finding IDs chosen for cleaning; starts with the items that rebuild automatically.
-    public var cleanupSelection: Set<String> = []
     /// Skip the Trash for items that rebuild automatically. Everything else always goes to the Trash.
     public var deleteRegenerable = true
     public var isConfirmingCleanup = false
@@ -125,10 +123,8 @@ public final class AppModel {
 
     public private(set) var downloadsPhase: Phase = .idle
     public private(set) var downloadsFindings: [Finding] = []
-    public var downloadsSelection: Set<String> = []
     public private(set) var largePhase: Phase = .idle
     public private(set) var largeFindings: [Finding] = []
-    public var largeSelection: Set<String> = []
     public var largeCriteria = PersonalFileFinder.LargeFileCriteria() {
         didSet { refreshLargeFiles() }
     }
@@ -138,12 +134,10 @@ public final class AppModel {
     public private(set) var duplicatesPhase: Phase = .idle
     public private(set) var duplicateSets: [DuplicateSet] = []
     public private(set) var duplicateProgress: DuplicateFinder.Progress?
-    /// Paths of copies chosen for removal. A set's kept copy is never among them.
-    public var duplicatesSelection: Set<String> = []
     public var duplicateStrategy: SurvivorStrategy = .original {
         didSet {
             keeperOverrides = [:]
-            duplicatesSelection.subtract(duplicateSets.map { keeper(of: $0).path })
+            stageDuplicates(duplicatesSelection)
         }
     }
     /// Copies the user chose to keep instead of the strategy's choice, by set ID.
@@ -153,6 +147,10 @@ public final class AppModel {
 
     /// Exclusions and locked originals, applied to every scan and cleanup.
     public private(set) var userRules: [UserRule] = []
+
+    /// Items staged for cleaning from every section, kept across relaunches. Checking an item
+    /// in any list stages it.
+    public private(set) var tray = Tray()
     public var isChoosingExclusion = false
 
     /// What Raker knows about each protected area.
@@ -190,7 +188,7 @@ public final class AppModel {
 
     private let engine = ScanEngine()
     private let apps = LaunchServicesAppDirectory()
-    private let database = try? AppDatabase.open()
+    private let database: AppDatabase?
     private var journal: JournalStore? { database?.journal }
     private let metadata = SystemFileMetadata()
     private let rulePack = Result { () throws(RulePackError) -> RulePack in try RulePackLoader.baseline() }
@@ -198,13 +196,18 @@ public final class AppModel {
     /// Ignores progress from a scan that has since been replaced.
     private var generation = 0
 
-    public init() {
+    /// - Parameter database: Where history, rules and the Tray are kept. Previews and tests
+    ///   pass one in memory.
+    public init(database: AppDatabase? = try? AppDatabase.open()) {
+        self.database = database
         let defaults = UserDefaults.standard
         access = AccessMap(remembered: defaults.dictionary(forKey: Self.accessKey) as? [String: String] ?? [:])
         isShowingFirstRun = !defaults.bool(forKey: Self.firstRunKey)
         refreshVolume()
         refreshHistory()
         refreshUserRules()
+        tray = Tray(items: (try? database?.tray.all()) ?? [])
+        revalidateTray()
         refreshAccess()
         // Access given in System Settings shows up as soon as the person comes back.
         activationObserver = NotificationCenter.default.addObserver(
@@ -268,7 +271,9 @@ public final class AppModel {
     }
 
     /// Finds caches, temporary files and logs with the baseline rule pack.
-    public func scanCleanup() {
+    /// - Parameter preselect: Stage the items that rebuild automatically. Off when scanning
+    ///   again right after a cleanup, so the Tray doesn't refill on its own.
+    public func scanCleanup(preselect: Bool = true) {
         let pack: RulePack
         switch rulePack {
         case .success(let loaded): pack = loaded
@@ -282,7 +287,12 @@ public final class AppModel {
             let report = await scanner.scan()
             learnAccess { $0.learn(refused: report.unreadable) }
             cleanupReport = report
-            cleanupSelection = Set(report.findings.filter(\.preselected).map(\.id))
+            updateTray { tray in
+                tray.unstage { $0.source == .cleanup }
+                for finding in report.findings where preselect && finding.preselected {
+                    tray.stage(TrayItem(finding: finding, source: .cleanup))
+                }
+            }
             cleanupPhase = .finished
         }
     }
@@ -323,9 +333,10 @@ public final class AppModel {
             cleanupProgress = nil
             lastReceipt = receipt
             isShowingReceipt = true
+            unstageCompleted(in: receipt)
             refreshVolume()
             refreshHistory()
-            scanCleanup()
+            scanCleanup(preselect: false)
         }
     }
 
@@ -361,7 +372,7 @@ public final class AppModel {
                 learnAccess { $0.learn(fromScanOf: tree.rootPath, skipped: report.skipped, homeDirectory: NSHomeDirectory()) }
                 let findings = await Task.detached(priority: .userInitiated) { finder.downloads(in: tree) }.value
                 downloadsFindings = findings
-                downloadsSelection = []
+                restage(from: .downloads, keepingOnly: findings)
                 downloadsPhase = .finished
             } catch {
                 learnAccess(from: error)
@@ -385,7 +396,8 @@ public final class AppModel {
                 finder.largeFiles(in: tree, criteria: criteria)
             }.value
             largeFindings = findings
-            largeSelection.formIntersection(findings.map(\.id))
+            // Items the new criteria leave out stay staged: the person chose them.
+            restage(from: .largeAndOld, keepingOnly: nil, updating: findings)
             largePhase = .finished
         }
     }
@@ -426,11 +438,10 @@ public final class AppModel {
             switch list {
             case .downloads:
                 downloadsFindings.removeAll { moved.contains($0.id) }
-                downloadsSelection.subtract(moved)
             case .largeAndOld:
                 largeFindings.removeAll { moved.contains($0.id) }
-                largeSelection.subtract(moved)
             }
+            unstageCompleted(in: receipt)
             refreshVolume()
             refreshHistory()
         }
@@ -451,8 +462,9 @@ public final class AppModel {
             }
             guard !Task.isCancelled else { return }
             duplicateSets = sets
-            duplicatesSelection = []
             keeperOverrides = [:]
+            // Copies staged before stay staged, now naming this comparison's kept copy.
+            stageDuplicates(duplicatesSelection)
             duplicatesPhase = .finished
         }
     }
@@ -506,7 +518,7 @@ public final class AppModel {
             lastReceipt = receipt
             isShowingReceipt = true
             let moved = Set(receipt.items.filter { if case .movedToTrash = $0.outcome { true } else { false } }.map(\.path))
-            duplicatesSelection.subtract(moved)
+            unstageCompleted(in: receipt)
             duplicateSets = duplicateSets.compactMap { set in
                 let files = set.files.filter { !moved.contains($0.path) }
                 return files.count > 1 ? DuplicateSet(id: set.id, size: set.size, allocatedPerCopy: set.allocatedPerCopy, files: files) : nil
@@ -561,17 +573,128 @@ public final class AppModel {
             }
         }
         cleanupReport = cleanupReport?.filtered { !blocked($0.path) }
-        cleanupSelection = cleanupSelection.filter { id in cleanupReport?.findings.contains { $0.id == id } ?? false }
         downloadsFindings.removeAll { blocked($0.path) }
-        downloadsSelection = downloadsSelection.filter { id in downloadsFindings.contains { $0.id == id } }
         largeFindings.removeAll { blocked($0.path) }
-        largeSelection = largeSelection.filter { id in largeFindings.contains { $0.id == id } }
         // Excluded copies leave their sets; locked copies stay, as the copy that's kept.
         duplicateSets = duplicateSets.compactMap { set in
             let files = set.files.filter { policy.evaluate($0.path) != .denied(.userExcluded) }
             return files.count > 1 ? DuplicateSet(id: set.id, size: set.size, allocatedPerCopy: set.allocatedPerCopy, files: files) : nil
         }
-        duplicatesSelection = duplicatesSelection.filter { !blocked($0) }
+        // Excluded and locked items leave the Tray. Other copies of a locked file now name it
+        // as the copy that stays.
+        updateTray { $0.unstage { blocked($0.finding.path) } }
+        stageDuplicates(duplicatesSelection)
+    }
+
+    // MARK: Tray
+
+    /// Finding IDs staged from Caches & Temporary Files. Setting it stages and unstages
+    /// listed items to match.
+    public var cleanupSelection: Set<String> {
+        get { tray.ids(from: .cleanup) }
+        set { stage(newValue, from: .cleanup, among: cleanupReport?.findings ?? []) }
+    }
+
+    public var downloadsSelection: Set<String> {
+        get { tray.ids(from: .downloads) }
+        set { stage(newValue, from: .downloads, among: downloadsFindings) }
+    }
+
+    public var largeSelection: Set<String> {
+        get { tray.ids(from: .largeAndOld) }
+        set { stage(newValue, from: .largeAndOld, among: largeFindings) }
+    }
+
+    /// Paths of copies staged for removal. A set's kept copy is never among them.
+    public var duplicatesSelection: Set<String> {
+        get { Set(tray.items(from: .duplicates).map(\.finding.path)) }
+        set { stageDuplicates(newValue) }
+    }
+
+    /// Makes the listed items staged from `source` exactly those in `ids`. Staged items that
+    /// aren't listed, such as ones a filter hides, stay.
+    private func stage(_ ids: Set<String>, from source: TrayItem.Source, among listed: [Finding]) {
+        let listedIDs = Set(listed.map(\.id))
+        updateTray { tray in
+            tray.unstage { $0.source == source && listedIDs.contains($0.id) && !ids.contains($0.id) }
+            for finding in listed where ids.contains(finding.id) && !tray.contains(finding.id) {
+                tray.stage(TrayItem(finding: finding, source: source))
+            }
+        }
+    }
+
+    /// Stages the chosen copies of the sets on screen, each naming its set's current kept
+    /// copy, which is never staged itself. Copies staged from earlier comparisons stay.
+    private func stageDuplicates(_ paths: Set<String>) {
+        var onScreen = Set<String>()
+        var staged: [Finding] = []
+        for set in duplicateSets {
+            onScreen.formUnion(set.files.map(\.path))
+            staged += set.findings(removing: paths, keeping: keeper(of: set))
+        }
+        let stagedIDs = Set(staged.map(\.id))
+        updateTray { tray in
+            tray.unstage { $0.source == .duplicates && onScreen.contains($0.finding.path) && !stagedIDs.contains($0.id) }
+            for finding in staged {
+                tray.stage(TrayItem(finding: finding, source: .duplicates))
+            }
+        }
+    }
+
+    /// After a fresh scan of a section: refreshes staged items that are still there, and, when
+    /// `keepingOnly` is given, unstages the ones that aren't.
+    private func restage(from source: TrayItem.Source, keepingOnly present: [Finding]?, updating listed: [Finding]? = nil) {
+        let current = Dictionary((present ?? listed ?? []).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        updateTray { tray in
+            if present != nil {
+                tray.unstage { $0.source == source && current[$0.id] == nil }
+            }
+            for item in tray.items(from: source) {
+                if let finding = current[item.id] {
+                    tray.stage(TrayItem(finding: finding, source: source))
+                }
+            }
+        }
+    }
+
+    /// Takes out what a cleanup moved to the Trash or deleted. Skipped and failed items stay.
+    private func unstageCompleted(in receipt: CleanupReceipt) {
+        let done = Set(receipt.items.compactMap { item -> String? in
+            switch item.outcome {
+            case .movedToTrash, .deleted: item.findingID
+            case .skipped, .failed: nil
+            }
+        })
+        updateTray { $0.unstage { done.contains($0.id) } }
+    }
+
+    /// Drops staged items that changed or disappeared while Raker was closed, or that the
+    /// person excluded since. Items blocked only by a running app stay.
+    private func revalidateTray() {
+        guard !tray.isEmpty else { return }
+        let findings = tray.findings
+        let executor = makeExecutor()
+        Task {
+            let stale = await Task.detached(priority: .utility) { () -> Set<String> in
+                let plan = PlanBuilder.plan(for: findings, deleteRegenerable: false, spaceBefore: nil)
+                var stale = Set<String>()
+                for (item, reason) in zip(plan.items, executor.preview(plan)) {
+                    guard let reason else { continue }
+                    if case .appRunning = reason { continue }
+                    stale.insert(item.finding.id)
+                }
+                return stale
+            }.value
+            updateTray { $0.unstage { stale.contains($0.id) } }
+        }
+    }
+
+    private func updateTray(_ update: (inout Tray) -> Void) {
+        var updated = tray
+        update(&updated)
+        guard updated != tray else { return }
+        tray = updated
+        try? database?.tray.save(updated.items)
     }
 
     // MARK: Access
