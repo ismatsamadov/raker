@@ -101,7 +101,9 @@ struct Explain: AsyncParsableCommand {
                 field("Inside", "\(known.title). \(known.explanation)")
             }
         }
-        field("Belongs to", Text.describe(explanation.owner))
+        if explanation.owner.status != .unknown {
+            field("Belongs to", Text.describe(explanation.owner))
+        }
         if let measurement = explanation.measurement {
             var size = "\(ByteCount(measurement.size.allocated).formatted) on disk"
             if let reclaimable = measurement.size.reclaimable {
@@ -115,6 +117,9 @@ struct Explain: AsyncParsableCommand {
             field("Size", "Doesn't exist or can't be read.")
         }
         field("Policy", Text.describe(explanation.verdict))
+        if let known = explanation.knownLocation, explanation.knownLocationIsExact, !known.removable {
+            field("", "Raker never removes this folder as a whole, only parts a rule describes.")
+        }
     }
 
     private func field(_ label: String, _ value: String) {
