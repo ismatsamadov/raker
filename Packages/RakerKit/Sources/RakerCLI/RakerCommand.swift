@@ -12,8 +12,11 @@ struct RakerCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "raker",
         abstract: "Find what uses storage on your Mac.",
-        discussion: "Developer harness for the Raker engines. Nothing in this tool removes files.",
-        subcommands: [DiskUsage.self, Largest.self, Junk.self, Explain.self, Volume.self, Check.self]
+        discussion: "Developer harness for the Raker engines. Only `clean --execute` removes anything.",
+        subcommands: [
+            DiskUsage.self, Largest.self, Junk.self, Explain.self, Clean.self, History.self, Restore.self,
+            Volume.self, Check.self,
+        ]
     )
 }
 

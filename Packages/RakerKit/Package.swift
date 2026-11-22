@@ -69,7 +69,7 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 "RakerFoundation", "RakerModel", "SafetyPolicy", "FileSystemKit", "SystemKit", "RuleEngine",
-                "SpaceIndex", "ScanEngine",
+                "SpaceIndex", "ScanEngine", "Persistence", "CleanEngine",
             ]
         ),
         // Runs the SwiftUI shell without an Xcode project; the Xcode app target replaces it later.

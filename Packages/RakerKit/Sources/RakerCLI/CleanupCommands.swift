@@ -129,7 +129,7 @@ struct Explain: AsyncParsableCommand {
 
 // MARK: - Helpers
 
-private func loadPack() throws -> RulePack {
+func loadPack() throws -> RulePack {
     do {
         return try RulePackLoader.baseline()
     } catch {
@@ -137,7 +137,7 @@ private func loadPack() throws -> RulePack {
     }
 }
 
-private enum Text {
+enum Text {
     static func title(of level: SafetyLevel) -> String {
         switch level {
         case .regenerable: "Rebuilds automatically"
