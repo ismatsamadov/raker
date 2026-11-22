@@ -255,6 +255,8 @@ public final class AppModel {
                     StorageKindClassifier.breakdown(of: tree, under: tree.root)
                 }.value
                 guard generation == current else { return }
+                // Indices into the old tree would point at other items in the new one.
+                self.largestSelection = []
                 self.report = report
                 self.breakdown = breakdown
                 self.browsedIndex = tree.root
