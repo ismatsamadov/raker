@@ -32,8 +32,8 @@ struct LeftoversView: View {
                 ProgressView("Looking for leftovers…")
                     .controlSize(.large)
             } else {
-                ContentUnavailableView("No leftovers", systemImage: "checkmark.seal",
-                                       description: Text("No removed app left anything in your Library."))
+                WorkspaceState(title: "No leftovers", symbol: "checkmark.seal",
+                               detail: "No removed app left anything in your Library.", tint: Palette.ochre)
             }
         } else {
             List {
@@ -71,8 +71,9 @@ struct LeftoversView: View {
         let hasCertain = model.leftovers.contains { $0.files.contains(where: \.isPreselected) }
         return VStack(alignment: .leading, spacing: Spacing.m) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Left behind by removed apps")
+                Label("Left behind by removed apps", systemImage: "app.dashed")
                     .font(.title2.weight(.semibold))
+                    .foregroundStyle(Palette.ochre)
                 Spacer()
                 if isMeasured {
                     SizeText(total)
@@ -100,6 +101,7 @@ struct LeftoversView: View {
             .disabled(!hasCertain)
             .help("Put the leftovers Raker is certain of in the Tray, then review")
         }
-        .padding(.vertical, Spacing.s)
+        .padding(Spacing.l)
+        .surfaceCard(cornerRadius: Radius.panel)
     }
 }

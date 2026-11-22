@@ -27,14 +27,7 @@ struct LargestItemsView: View {
             if let tree = model.report?.tree {
                 content(tree: tree, folder: model.browsedIndex ?? tree.root)
             } else {
-                ContentUnavailableView {
-                    Label("No scan yet", systemImage: "chart.bar.doc.horizontal")
-                } description: {
-                    Text("Scan a folder to see what's taking up space, largest first.")
-                } actions: {
-                    Button("Scan \(model.scope.title)") { model.startScan() }
-                        .prominentActionStyle()
-                }
+                FolderScanPrompt(section: .largest, detail: "Scan a folder to see what's taking up space, largest first.", model: model)
             }
         }
         .navigationTitle("Largest Items")
@@ -64,7 +57,8 @@ struct LargestItemsView: View {
         VStack(alignment: .leading, spacing: 0) {
             breadcrumbs(tree: tree, folder: folder)
                 .padding(.horizontal, Spacing.l)
-                .padding(.vertical, Spacing.s)
+                .padding(.vertical, Spacing.m)
+                .background(Palette.paper)
             Divider()
             switch model.largestMode {
             case .list:
@@ -134,6 +128,7 @@ struct LargestItemsView: View {
                 preview(index, in: tree)
             }
         }
+        .environment(\.defaultMinListRowHeight, 32)
         .reviewKeyboard(model)
     }
 
@@ -155,7 +150,10 @@ struct LargestItemsView: View {
             .padding(.horizontal, Spacing.xl)
             .padding(.top, Spacing.l)
             caption(tree: tree, total: total)
-                .frame(height: 40)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Spacing.m)
+                .padding(.vertical, Spacing.s)
+                .surfaceCard()
             if model.lensColoring == .age {
                 ageLegend
             }
@@ -292,6 +290,7 @@ struct LargestItemsView: View {
             current = tree.parent(of: index)
         }
         return HStack(spacing: Spacing.xs) {
+            SymbolTile("folder", tint: Palette.lagoon, size: 28)
             ForEach(chain, id: \.self) { index in
                 if index != tree.root {
                     Image(systemName: "chevron.right")
@@ -302,11 +301,15 @@ struct LargestItemsView: View {
                     open(index)
                 }
                 .buttonStyle(.plain)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .help(tree.path(of: index))
                 .foregroundStyle(index == folder ? .primary : .secondary)
             }
             Spacer()
             SizeText(tree.allocatedSize(of: folder))
-                .foregroundStyle(.secondary)
+                .font(.headline.monospacedDigit())
+                .fixedSize()
         }
         .font(.callout)
     }

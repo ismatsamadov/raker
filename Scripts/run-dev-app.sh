@@ -19,6 +19,7 @@ bin_dir="$(swift build -c "$config" --show-bin-path)"
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin_dir/RakerDevApp" "$app/Contents/MacOS/Raker"
+cp "$root/Design/Raker.icns" "$app/Contents/Resources/Raker.icns"
 # Resource bundles, such as the baseline rule pack.
 for bundle in "$bin_dir"/*.bundle; do
     [[ -e "$bundle" ]] && cp -R "$bundle" "$app/Contents/Resources/"
@@ -35,6 +36,8 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
     <string>Raker</string>
     <key>CFBundleDisplayName</key>
     <string>Raker</string>
+    <key>CFBundleIconFile</key>
+    <string>Raker.icns</string>
     <key>CFBundleExecutable</key>
     <string>Raker</string>
     <key>CFBundlePackageType</key>

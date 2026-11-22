@@ -11,13 +11,8 @@ struct SkippedLocationsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text("Raker couldn't read \(locations.count.formatted()) location\(locations.count == 1 ? "" : "s")")
-                    .font(.headline)
-                Text("They aren't included in the sizes you see.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
+            PanelHeading(title: "\(locations.count.formatted()) skipped location\(locations.count == 1 ? "" : "s")",
+                         symbol: "lock.shield", detail: "Sizes exclude the locations Raker couldn’t read.", tint: Palette.ochre)
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.l) {
                     ForEach(groups) { group in
@@ -39,10 +34,7 @@ struct SkippedLocationsView: View {
 
     private func groupView(_ group: Group) -> some View {
         HStack(alignment: .top, spacing: Spacing.m) {
-            Image(systemName: group.symbol)
-                .font(.title3)
-                .foregroundStyle(.tint)
-                .frame(width: 24)
+            SymbolTile(group.symbol, tint: Palette.ochre, size: 28)
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(group.title).font(.body.weight(.medium))
                 Text(group.hint).font(.caption).foregroundStyle(.secondary)

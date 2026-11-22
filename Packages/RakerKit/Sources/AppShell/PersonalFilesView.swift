@@ -30,48 +30,33 @@ struct PersonalFilesView: View {
         switch phase {
         case .idle:
             if list == .downloads {
-                ContentUnavailableView {
-                    Label("Downloads & Installers", systemImage: "arrow.down.circle")
-                } description: {
-                    Text("See what's piled up in Downloads, where each item came from, and which installers are for apps you already have.")
-                } actions: {
+                WorkspaceState(title: "Downloads & Installers", symbol: "arrow.down.circle",
+                               detail: "See what's piled up in Downloads, where each item came from, and which installers are for apps you already have.", tint: Palette.ochre) {
                     Button("Scan Downloads") { model.scanDownloads() }
                         .prominentActionStyle()
                 }
             } else {
-                ContentUnavailableView {
-                    Label("Large & Old", systemImage: "clock.badge.exclamationmark")
-                } description: {
-                    Text("Find big files, and files you haven't opened in a long time, in the folder you scan.")
-                } actions: {
-                    Button("Scan \(model.scope.title)") { model.startScan() }
-                        .prominentActionStyle()
-                }
+                FolderScanPrompt(section: .largeAndOld, detail: "Find big files, and files you haven't opened in a long time, in the folder you scan.", model: model)
             }
         case .scanning:
             ProgressView(list == .downloads ? "Looking through Downloads…" : "Finding large files…")
                 .controlSize(.large)
         case .failed(let message):
             if list == .downloads, model.access[.downloads] == .denied {
-                ContentUnavailableView {
-                    Label("Raker can't open Downloads", systemImage: "lock")
-                } description: {
-                    Text("macOS asked whether Raker may open Downloads, and the answer was no. You can change it in System Settings › Privacy & Security › Files & Folders.")
-                } actions: {
+                WorkspaceState(title: "Raker can't open Downloads", symbol: "lock",
+                               detail: "macOS asked whether Raker may open Downloads, and the answer was no. You can change it in System Settings › Privacy & Security › Files & Folders.", tint: Palette.ochre) {
                     Button("Open Privacy Settings") { PrivacySettings.open(.filesAndFolders) }
                     Button("Try Again") { model.scanDownloads() }
                 }
             } else {
-                ContentUnavailableView("Couldn't scan", systemImage: "exclamationmark.triangle", description: Text(message))
+                WorkspaceState(title: "Couldn't scan", symbol: "exclamationmark.triangle",
+                               detail: message, tint: Palette.ochre)
             }
         case .finished:
             let findings = model.findings(for: list)
             if findings.isEmpty {
-                ContentUnavailableView {
-                    Label(list == .downloads ? "Downloads is empty" : "No files match", systemImage: "checkmark.circle")
-                } description: {
-                    Text(list == .downloads ? "Nothing to review here." : "Try a smaller size or a shorter time.")
-                }
+                WorkspaceState(title: list == .downloads ? "Downloads is empty" : "No files match", symbol: "checkmark.circle",
+                               detail: list == .downloads ? "Nothing to review here." : "Try a smaller size or a shorter time.", tint: list == .downloads ? Palette.ochre : Palette.lagoon)
             } else {
                 VStack(spacing: 0) {
                     header(findings)
@@ -82,6 +67,7 @@ struct PersonalFilesView: View {
                         onPreview: { model.previewURL = $0 },
                         onRule: { kind, path in model.addUserRule(kind, for: path) }
                     )
+                    .environment(\.defaultMinListRowHeight, 32)
                     .reviewKeyboard(model)
                 }
             }
@@ -89,29 +75,34 @@ struct PersonalFilesView: View {
     }
 
     private func header(_ findings: [Finding]) -> some View {
-        HStack(spacing: Spacing.m) {
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                HStack(spacing: Spacing.xs) {
-                    Text("\(findings.count.formatted()) item\(findings.count == 1 ? "" : "s"),")
-                    SizeText(findings.reduce(UInt64(0)) { $0 &+ $1.size.allocated })
+        let section: AppModel.Section = list == .downloads ? .downloads : .largeAndOld
+        let bytes = findings.reduce(UInt64(0)) { $0 &+ $1.size.allocated }
+        return VStack(alignment: .leading, spacing: Spacing.m) {
+            PanelHeading(title: "\(ByteCount(bytes).formatted) across \(findings.count.formatted()) item\(findings.count == 1 ? "" : "s")",
+                         symbol: section.symbol,
+                         detail: list == .downloads
+                             ? "Choose which downloads to stage. An archive may be your only copy of its contents."
+                             : "From \(model.scope.title). App bundles, Library and hidden folders are excluded.",
+                         tint: section.tint)
+            if list == .downloads || !selection.wrappedValue.isEmpty {
+                ViewThatFits(in: .horizontal) {
+                    HStack { selectionActions }
+                    VStack(alignment: .leading) { selectionActions }
                 }
-                .font(.headline)
-                Text(list == .downloads
-                     ? "Nothing goes in the Tray for you. Archives may be your only copy of what's inside."
-                     : "Files in \(model.scope.title) from the last scan. App bundles, ~/Library and hidden folders are left out.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            if list == .downloads {
-                Button("Select Installers of Installed Apps") { model.selectInstallersOfInstalledApps() }
-            }
-            if !selection.wrappedValue.isEmpty {
-                Button("Remove from Tray") { selection.wrappedValue = [] }
             }
         }
-        .padding(.horizontal, Spacing.l)
-        .padding(.vertical, Spacing.m)
+        .padding(Spacing.l)
+        .background(Palette.paper)
+    }
+
+    @ViewBuilder
+    private var selectionActions: some View {
+        if list == .downloads {
+            Button("Select Installers of Installed Apps") { model.selectInstallersOfInstalledApps() }
+        }
+        if !selection.wrappedValue.isEmpty {
+            Button("Remove from Tray") { selection.wrappedValue = [] }
+        }
     }
 
     @ToolbarContentBuilder

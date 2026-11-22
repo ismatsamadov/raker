@@ -12,19 +12,12 @@ struct ReceiptView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.l) {
-            HStack(spacing: Spacing.m) {
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 34))
-                    .foregroundStyle(Palette.rebuildsAutomatically)
-                    .symbolEffect(.bounce, value: receipt.id)
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text("Cleanup receipt")
-                        .font(.title2.weight(.semibold))
-                    Text(receipt.startedAt.formatted(date: .abbreviated, time: .shortened))
-                        .foregroundStyle(.secondary)
-                }
+            PanelHeading(title: "Cleanup receipt", symbol: "checkmark.seal.fill",
+                         detail: receipt.startedAt.formatted(date: .abbreviated, time: .shortened), tint: Palette.moss)
+            ViewThatFits(in: .vertical) {
+                summary
+                ScrollView { summary }
             }
-            ReceiptSummary(receipt: receipt, appName: appName)
             Text("Free space can grow further after the Trash is emptied, and local snapshots can delay part of the gain.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -41,7 +34,15 @@ struct ReceiptView: View {
             }
         }
         .padding(Spacing.xl)
-        .frame(width: 480)
+        .frame(width: 520)
+        .frame(maxHeight: 580)
+        .background(Palette.canvas)
+    }
+
+    private var summary: some View {
+        ReceiptSummary(receipt: receipt, appName: appName)
+            .padding(Spacing.l)
+            .surfaceCard()
     }
 }
 

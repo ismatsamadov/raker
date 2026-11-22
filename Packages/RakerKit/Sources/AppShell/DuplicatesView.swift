@@ -33,22 +33,12 @@ struct DuplicatesView: View {
     @ViewBuilder
     private var content: some View {
         if model.report == nil {
-            ContentUnavailableView {
-                Label("Duplicates", systemImage: "square.on.square")
-            } description: {
-                Text("Scan a folder first, then Raker compares the files in it.")
-            } actions: {
-                Button("Scan \(model.scope.title)") { model.startScan() }
-                    .prominentActionStyle()
-            }
+            FolderScanPrompt(section: .duplicates, detail: "Scan a folder first, then Raker compares the files in it.", model: model)
         } else {
             switch model.duplicatesPhase {
             case .idle:
-                ContentUnavailableView {
-                    Label("Find duplicates in \(model.scope.title)", systemImage: "square.on.square")
-                } description: {
-                    Text("Raker compares file contents byte for byte, on this Mac. Files in iCloud that aren't downloaded are left alone.")
-                } actions: {
+                WorkspaceState(title: "Find duplicates in \(model.scope.title)", symbol: "square.on.square",
+                               detail: "Raker compares file contents byte for byte, on this Mac. Files in iCloud that aren't downloaded are left alone.", tint: Palette.iris) {
                     Button("Find Duplicates") { model.findDuplicates() }
                         .prominentActionStyle()
                 }
@@ -66,14 +56,12 @@ struct DuplicatesView: View {
                     Button("Cancel") { model.cancelDuplicates() }
                 }
             case .failed(let message):
-                ContentUnavailableView("Couldn't compare files", systemImage: "exclamationmark.triangle", description: Text(message))
+                WorkspaceState(title: "Couldn't compare files", symbol: "exclamationmark.triangle",
+                               detail: message, tint: Palette.ochre)
             case .finished:
                 if model.duplicateSets.isEmpty {
-                    ContentUnavailableView {
-                        Label("No duplicates", systemImage: "checkmark.circle")
-                    } description: {
-                        Text("Every file in \(model.scope.title) is unique.")
-                    }
+                    WorkspaceState(title: "No duplicates", symbol: "checkmark.circle",
+                                   detail: "Every file in \(model.scope.title) is unique.", tint: Palette.iris)
                 } else {
                     results
                 }
@@ -84,26 +72,19 @@ struct DuplicatesView: View {
     private var results: some View {
         let frees = model.duplicateSets.reduce(UInt64(0)) { $0 &+ $1.reclaimable(keeping: model.keeper(of: $1).path) }
         return VStack(spacing: 0) {
-            HStack(spacing: Spacing.m) {
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    HStack(spacing: Spacing.xs) {
-                        Text("\(model.duplicateSets.count.formatted()) set\(model.duplicateSets.count == 1 ? "" : "s"), up to")
-                        SizeText(frees)
-                        Text("to free")
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                PanelHeading(title: "Up to \(ByteCount(frees).formatted) to free", symbol: "square.on.square",
+                             detail: "\(model.duplicateSets.count.formatted()) duplicate set\(model.duplicateSets.count == 1 ? "" : "s"). The star marks the copy that stays.",
+                             tint: Palette.iris)
+                HStack {
+                    Button("Select All Duplicates") { model.selectAllDuplicates() }
+                    if !model.duplicatesSelection.isEmpty {
+                        Button("Remove from Tray") { model.duplicatesSelection = [] }
                     }
-                    .font(.headline)
-                    Text("★ marks the copy that stays. Nothing goes in the Tray until you choose.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button("Select All Duplicates") { model.selectAllDuplicates() }
-                if !model.duplicatesSelection.isEmpty {
-                    Button("Remove from Tray") { model.duplicatesSelection = [] }
                 }
             }
-            .padding(.horizontal, Spacing.l)
-            .padding(.vertical, Spacing.m)
+            .padding(Spacing.l)
+            .background(Palette.paper)
             Divider()
             List(selection: $model.inspectedIDs[.duplicates]) {
                 ForEach(model.duplicateSets) { set in

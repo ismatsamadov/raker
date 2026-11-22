@@ -64,12 +64,13 @@ public struct GlassPanel: ViewModifier {
 /// An opaque card for content such as insights and summaries.
 public struct SurfaceCard: ViewModifier {
     let cornerRadius: CGFloat
+    @Environment(\.colorSchemeContrast) private var contrast
 
     public func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         content
-            .background(shape.fill(Color(nsColor: .controlBackgroundColor)))
-            .overlay(shape.strokeBorder(Color(nsColor: .separatorColor).opacity(0.6), lineWidth: 0.5))
+            .background(shape.fill(Palette.paper))
+            .overlay(shape.strokeBorder(Palette.rule.opacity(contrast == .increased ? 1 : 0.8), lineWidth: contrast == .increased ? 1.5 : 0.75))
     }
 }
 

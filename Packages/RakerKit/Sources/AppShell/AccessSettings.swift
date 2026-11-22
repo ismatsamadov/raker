@@ -12,10 +12,7 @@ struct AccessSettings: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
-                Text("Raker reads names, sizes and dates on this Mac. It asks for more only when a feature needs it, and works with whatever you allow.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                PanelHeading(title: "Access", symbol: "lock.shield", detail: "Raker reads file names, sizes and dates on this Mac. Choose which locations it can include in a scan.")
                 filesAndFolders
                 fullDiskAccess
                 otherAppsData
@@ -181,10 +178,7 @@ struct AccessRow<Accessory: View>: View {
 
     var body: some View {
         HStack(spacing: Spacing.m) {
-            Image(systemName: area.symbol)
-                .font(.title3)
-                .foregroundStyle(.tint)
-                .frame(width: 28)
+            SymbolTile(area.symbol, tint: Palette.lagoon, size: 30)
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(area.title).font(.body.weight(.medium))
                 Text(area.unlocks)

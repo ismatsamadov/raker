@@ -12,12 +12,8 @@ struct TrayCapsule: View {
     var body: some View {
         let tray = model.tray
         HStack(spacing: Spacing.m) {
-            Image(systemName: tray.isEmpty ? "tray" : "tray.full.fill")
-                .font(.title2)
-                .foregroundStyle(tray.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
-                .contentTransition(.symbolEffect(.replace))
-                .symbolEffect(.bounce, value: tray.count)
-                .frame(width: 28)
+            SymbolTile(tray.isEmpty ? "tray" : "tray.full.fill",
+                       tint: tray.isEmpty ? Palette.accent : Palette.moss, size: 36)
             if tray.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("The Tray is empty")
@@ -57,8 +53,8 @@ struct TrayCapsule: View {
         }
         .padding(.horizontal, Spacing.l)
         .padding(.vertical, Spacing.m)
-        .frame(width: tray.isEmpty ? 360 : 520)
-        .glassPanel(cornerRadius: 30)
+        .frame(maxWidth: tray.isEmpty ? 330 : 500)
+        .glassPanel(cornerRadius: Radius.panel)
         .animation(Motion.snappy, value: tray.count)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Tray")
@@ -74,19 +70,9 @@ struct TrayReviewView: View {
         let deleted = items.filter { model.deleteRegenerable && $0.finding.safety == .regenerable }
         let trashed = items.filter { !(model.deleteRegenerable && $0.finding.safety == .regenerable) }
         VStack(alignment: .leading, spacing: Spacing.l) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text("Review the Tray")
-                        .font(.title2.weight(.semibold))
-                    HStack(spacing: Spacing.xxs) {
-                        Text("\(items.count.formatted()) item\(items.count == 1 ? "" : "s") ·")
-                        SizeText(model.tray.allocatedBytes)
-                        Text("· frees about")
-                        SizeText(model.tray.reclaimableBytes)
-                    }
-                    .foregroundStyle(.secondary)
-                }
-                Spacer()
+            HStack(alignment: .center, spacing: Spacing.m) {
+                PanelHeading(title: "Review the Tray", symbol: "tray.full.fill",
+                             detail: "\(items.count.formatted()) item\(items.count == 1 ? "" : "s") · \(ByteCount(model.tray.allocatedBytes).formatted) · frees about \(ByteCount(model.tray.reclaimableBytes).formatted)")
                 Button("Clear Tray") { model.clearTray() }
                     .disabled(items.isEmpty)
             }
@@ -111,6 +97,8 @@ struct TrayReviewView: View {
                 }
             }
             .listStyle(.inset)
+            .scrollContentBackground(.hidden)
+            .surfaceCard()
             .frame(minHeight: 260)
             if model.tray.items.contains(where: { $0.finding.safety == .regenerable }) {
                 Toggle("Skip the Trash for items that rebuild automatically", isOn: $model.deleteRegenerable)
@@ -136,6 +124,7 @@ struct TrayReviewView: View {
         }
         .padding(Spacing.xl)
         .frame(width: 640, height: 580)
+        .background(Palette.canvas)
     }
 }
 

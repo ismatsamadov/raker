@@ -833,7 +833,11 @@ public final class AppModel {
     /// Whether the current section has rows to inspect.
     public var hasInspector: Bool {
         switch selection ?? .overview {
-        case .cleanup, .downloads, .largeAndOld, .duplicates, .largest: true
+        case .largest: report != nil
+        case .cleanup: cleanupPhase == .finished && cleanupReport?.groups.isEmpty == false
+        case .downloads: downloadsPhase == .finished && !downloadsFindings.isEmpty
+        case .largeAndOld: largePhase == .finished && !largeFindings.isEmpty
+        case .duplicates: duplicatesPhase == .finished && !duplicateSets.isEmpty
         case .overview, .applications, .leftovers, .history: false
         }
     }

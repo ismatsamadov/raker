@@ -31,6 +31,7 @@ struct LocationInspectorView: View {
                 }
                 .padding(Spacing.l)
             }
+            .background(Palette.canvas)
             .id(path)
         } else {
             ContentUnavailableView {
@@ -75,7 +76,9 @@ struct LocationInspectorView: View {
                 SafetyChip(level: level)
             }
         }
+        .padding(Spacing.m)
         .frame(maxWidth: .infinity)
+        .surfaceCard()
     }
 
     @ViewBuilder

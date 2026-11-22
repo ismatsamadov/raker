@@ -25,14 +25,17 @@ struct InspectorView: View {
                 }
                 .padding(Spacing.l)
             }
+            .background(Palette.canvas)
             .id(finding.id)
             .transition(.opacity)
         } else {
             ContentUnavailableView {
-                Label("No Selection", systemImage: "sidebar.right")
+                Label("Item inspector", systemImage: "sidebar.right")
             } description: {
-                Text("Select an item to see what it is and what happens if it's removed.")
+                Text("Select an item to see what it is and what happens if it’s removed.")
             }
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+            .background(Palette.canvas)
         }
     }
 
@@ -71,7 +74,9 @@ struct InspectorView: View {
                 SafetyChip(level: finding.safety)
             }
         }
+        .padding(Spacing.m)
         .frame(maxWidth: .infinity)
+        .surfaceCard()
     }
 
     @ViewBuilder

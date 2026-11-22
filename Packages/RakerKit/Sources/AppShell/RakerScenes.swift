@@ -36,6 +36,7 @@ public struct RakerScenes: Scene {
 
         Settings {
             SettingsView(model: model)
+                .tint(Palette.accent)
         }
     }
 }
@@ -58,22 +59,29 @@ public struct RakerRootView: View {
                     .transition(.opacity)
             }
         }
+        .tint(Palette.accent)
         .frame(minWidth: 960, minHeight: 640)
         .animation(Motion.smooth, value: model.isShowingFirstRun)
     }
 
     private var mainWindow: some View {
         NavigationSplitView {
-            SidebarView(selection: $model.selection)
+            SidebarView(model: model)
         } detail: {
             detail(for: model.selection ?? .overview)
+                .scrollContentBackground(.hidden)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Palette.canvas)
                 .safeAreaInset(edge: .bottom) {
                     if showsTray {
                         TrayCapsule(model: model)
-                            .padding(.bottom, Spacing.l)
+                            .padding(.horizontal, Spacing.m)
+                            .padding(.bottom, Spacing.m)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
+                // Give native split views a flexible minimum even when a results header wraps.
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                 .animation(Motion.smooth, value: showsTray)
                 .sheet(isPresented: $model.isReviewingTray) {
                     TrayReviewView(model: model)
@@ -156,48 +164,54 @@ public struct RakerRootView: View {
 }
 
 struct SidebarView: View {
-    @Binding var selection: AppModel.Section?
+    @Bindable var model: AppModel
 
     var body: some View {
-        List(selection: $selection) {
-            row(.overview)
-            Section("Explore") {
-                ForEach([AppModel.Section.largest, .downloads, .largeAndOld, .duplicates]) { row($0) }
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: Spacing.s) {
+                RakerIcon().frame(width: 38, height: 38)
+                Text("Raker")
+                    .font(.system(size: 25, weight: .bold, design: .rounded))
             }
-            Section("Clean") {
-                row(.cleanup)
+            .padding(.horizontal, Spacing.l)
+            .padding(.vertical, Spacing.m)
+            List(selection: $model.selection) {
+                row(.overview)
+                Section("Explore") {
+                    ForEach([AppModel.Section.largest, .downloads, .largeAndOld, .duplicates]) { row($0) }
+                }
+                Section("Clean") { row(.cleanup) }
+                Section("Apps") {
+                    row(.applications)
+                    row(.leftovers)
+                }
+                Section("History") { row(.history) }
             }
-            Section("Apps") {
-                row(.applications)
-                row(.leftovers)
+            .listStyle(.sidebar)
+            .environment(\.defaultMinListRowHeight, 32)
+            Divider()
+            SettingsLink {
+                Label("Settings", systemImage: "gearshape")
+                    .font(.body.weight(.medium))
+                    .padding(.vertical, Spacing.s)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
             }
-            Section("History") {
-                row(.history)
-            }
+            .buttonStyle(.plain)
+            .padding(Spacing.m)
         }
-        .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
+        .navigationSplitViewColumnWidth(min: 210, ideal: 236, max: 280)
     }
 
     private func row(_ section: AppModel.Section) -> some View {
-        Label(section.title, systemImage: section.symbol).tag(section)
-    }
-}
-
-struct PlaceholderView: View {
-    let section: AppModel.Section
-    let message: String
-
-    var body: some View {
-        ContentUnavailableView {
-            Label(section.title, systemImage: section.symbol)
-        } description: {
-            Text(message)
-        } actions: {
-            Text("Coming in the first release")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+        Label {
+            Text(section.title)
+        } icon: {
+            Image(systemName: section.symbol)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(section.tint)
         }
-        .navigationTitle(section.title)
+        .tag(section)
     }
 }
 

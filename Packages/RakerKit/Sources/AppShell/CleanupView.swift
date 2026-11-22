@@ -16,11 +16,8 @@ struct CleanupView: View {
         Group {
             switch model.cleanupPhase {
             case .idle:
-                ContentUnavailableView {
-                    Label("Caches, temporary files and logs", systemImage: "sparkles")
-                } description: {
-                    Text("See what apps and tools leave behind, what each item is, and whether it rebuilds itself. Nothing is removed until you choose.")
-                } actions: {
+                WorkspaceState(title: "Caches, temporary files and logs", symbol: "sparkles",
+                               detail: "See what apps and tools leave behind, what each item is, and whether it rebuilds itself. Nothing is removed until you choose.", tint: Palette.moss) {
                     Button("Scan") { model.scanCleanup() }
                         .prominentActionStyle()
                 }
@@ -28,7 +25,8 @@ struct CleanupView: View {
                 ProgressView("Looking through caches, temporary files and logs…")
                     .controlSize(.large)
             case .failed(let message):
-                ContentUnavailableView("Couldn't scan", systemImage: "exclamationmark.triangle", description: Text(message))
+                WorkspaceState(title: "Couldn't scan", symbol: "exclamationmark.triangle",
+                               detail: message, tint: Palette.ochre)
             case .finished:
                 if let report = model.cleanupReport {
                     CleanupReportList(report: report, selection: $model.cleanupSelection,
@@ -156,9 +154,8 @@ struct SummaryTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            Label(title, systemImage: symbol)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(tint)
+            SymbolTile(symbol, tint: tint, size: 30)
+            Text(title).font(.subheadline.weight(.semibold))
             SizeText(bytes)
                 .font(.rakerMetric)
         }

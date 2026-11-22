@@ -18,6 +18,8 @@ struct SettingsView: View {
                 .tabItem { Label("Exclusions", systemImage: "hand.raised") }
                 .tag(AppModel.SettingsTab.exclusions)
         }
+        .scrollContentBackground(.hidden)
+        .background(Palette.canvas)
         .frame(width: 640, height: 600)
     }
 }
@@ -28,16 +30,12 @@ struct ExclusionsSettings: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
-            Text("Raker never suggests or removes anything you exclude. A locked original is always the copy that stays when it has duplicates.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            PanelHeading(title: "Exclusions", symbol: "hand.raised",
+                         detail: "Raker leaves excluded locations out of cleanup suggestions. A locked original is always the copy that stays when it has duplicates.",
+                         tint: Palette.ochre)
             if model.userRules.isEmpty {
-                ContentUnavailableView {
-                    Label("No exclusions", systemImage: "hand.raised")
-                } description: {
-                    Text("Right-click any item and choose Never Suggest This or Lock as Original.")
-                }
+                WorkspaceState(title: "No exclusions", symbol: "hand.raised",
+                               detail: "Right-click any item and choose Never Suggest This or Lock as Original.", tint: Palette.ochre)
                 .frame(maxHeight: .infinity)
             } else {
                 List(model.userRules) { rule in
@@ -68,10 +66,11 @@ struct ExclusionsSettings: View {
             }
             HStack {
                 Button("Exclude a Folder…") { model.isChoosingExclusion = true }
+                    .prominentActionStyle()
                 Spacer()
             }
         }
-        .padding(Spacing.l)
+        .padding(Spacing.xl)
         .fileImporter(isPresented: $model.isChoosingExclusion, allowedContentTypes: [.folder]) { result in
             if case .success(let url) = result {
                 model.addUserRule(.exclude, for: url.path)

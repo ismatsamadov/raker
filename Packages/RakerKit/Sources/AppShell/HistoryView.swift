@@ -11,17 +11,15 @@ struct HistoryView: View {
     var body: some View {
         Group {
             if model.receipts.isEmpty {
-                ContentUnavailableView {
-                    Label("No cleanups yet", systemImage: "clock.arrow.circlepath")
-                } description: {
-                    Text("Every cleanup is recorded here: what was deleted, what went to the Trash, and how free space changed.")
-                }
+                WorkspaceState(title: "No cleanups yet", symbol: "clock.arrow.circlepath",
+                               detail: "Every cleanup is recorded here: what was deleted, what went to the Trash, and how free space changed.", tint: Palette.lagoon)
             } else {
                 List {
                     ForEach(model.receipts) { receipt in
                         Section {
                             ReceiptSummary(receipt: receipt, appName: model.appName(for:))
-                                .padding(.vertical, Spacing.xs)
+                                .padding(Spacing.l)
+                                .surfaceCard()
                             DisclosureGroup("Items") {
                                 ForEach(receipt.items) { ExecutedItemRow(item: $0) }
                             }
@@ -32,7 +30,9 @@ struct HistoryView: View {
                                 }
                             }
                         } header: {
-                            Text(receipt.startedAt.formatted(date: .complete, time: .shortened))
+                            Label(receipt.startedAt.formatted(date: .complete, time: .shortened), systemImage: "clock")
+                                .font(.headline)
+                                .padding(.vertical, Spacing.xs)
                         }
                     }
                 }

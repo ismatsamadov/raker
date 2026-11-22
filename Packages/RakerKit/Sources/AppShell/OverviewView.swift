@@ -12,17 +12,33 @@ struct OverviewView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.xxl) {
+            VStack(alignment: .leading, spacing: Spacing.xl) {
                 header
-                HStack(alignment: .center, spacing: Spacing.hero) {
-                    ring
-                        .frame(width: 300, height: 300)
-                    legend
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: Spacing.l) {
+                    HStack {
+                        Label("Folder breakdown", systemImage: "chart.pie")
+                            .font(.title3.weight(.semibold))
+                        Spacer()
+                        scanButton
+                    }
+                    Divider()
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: Spacing.xxl) {
+                            dial
+                            legend.frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
+                        }
+                        VStack(spacing: Spacing.l) {
+                            dial
+                            legend
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
                 }
+                .padding(Spacing.xl)
+                .surfaceCard(cornerRadius: Radius.panel)
                 cards
             }
-            .padding(Spacing.xxl)
+            .padding(Spacing.xl)
             .frame(maxWidth: 1080)
             .frame(maxWidth: .infinity)
         }
@@ -43,32 +59,75 @@ struct OverviewView: View {
     // MARK: Header
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(model.volumeName)
-                    .font(.title2.weight(.semibold))
-                if let volume = model.volume {
-                    HStack(spacing: Spacing.xs) {
-                        SizeText(volume.availableIncludingPurgeable)
-                        Text("available of")
-                        SizeText(volume.total)
-                    }
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            Label(model.volumeName, systemImage: "internaldrive.fill")
+                .font(.headline)
+                .foregroundStyle(Palette.lichen)
+            if let volume = model.volume {
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+                    SizeText(volume.availableIncludingPurgeable)
+                        .font(.rakerHero)
+                    Text("available").font(.title3)
                 }
+                .foregroundStyle(.white)
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    let used = volume.total - min(volume.total, volume.availableIncludingPurgeable)
+                    GeometryReader { proxy in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(.white.opacity(0.20))
+                            Capsule().fill(Palette.lichen)
+                                .frame(width: proxy.size.width * (volume.total > 0 ? Double(used) / Double(volume.total) : 0))
+                        }
+                    }
+                    .frame(maxWidth: 300)
+                    .frame(height: 5)
+                    .accessibilityHidden(true)
+                    Text("\(ByteCount(used).formatted) used of \(ByteCount(volume.total).formatted)")
+                        .font(.callout.monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.83))
+                }
+            } else {
+                Text("Volume capacity unavailable")
+                    .font(.title2)
+                    .foregroundStyle(.white)
             }
-            Spacer()
-            Button {
-                withAnimation(Motion.snappy) { model.toggleScan() }
-            } label: {
-                Label(model.isScanning ? "Stop" : "Scan \(model.scope.title)",
-                      systemImage: model.isScanning ? "stop.fill" : "sparkle.magnifyingglass")
-                    .contentTransition(.symbolEffect(.replace))
-                    .padding(.horizontal, Spacing.xs)
-            }
-            .prominentActionStyle()
-            .controlSize(.large)
-            .keyboardShortcut("r", modifiers: .command)
         }
+        .padding(Spacing.xl)
+        .frame(maxWidth: .infinity, minHeight: 162, alignment: .leading)
+        .background {
+            ZStack {
+                Palette.forest
+                Terrain(ink: Palette.lichen, center: UnitPoint(x: 0.86, y: 0.38))
+                    .mask(LinearGradient(stops: [.init(color: .clear, location: 0.32),
+                                                 .init(color: .black, location: 0.74)],
+                                         startPoint: .leading, endPoint: .trailing))
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: Radius.panel))
+    }
+
+    private var scanButton: some View {
+        Button {
+            withAnimation(Motion.snappy) { model.toggleScan() }
+        } label: {
+            Label(model.isScanning ? "Stop" : "Scan \(model.scope.title)",
+                  systemImage: model.isScanning ? "stop.fill" : "viewfinder")
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .prominentActionStyle()
+        .controlSize(.large)
+        .keyboardShortcut("r", modifiers: .command)
+    }
+
+    private var dial: some View {
+        ring
+            .padding(10)
+            .background {
+                Circle().strokeBorder(Palette.rule, style: StrokeStyle(lineWidth: 3, dash: [1, 7]))
+                    .accessibilityHidden(true)
+            }
+            .frame(width: 218, height: 218)
     }
 
     private var scopePicker: some View {
@@ -110,8 +169,11 @@ struct OverviewView: View {
             DiskRingView(segments: segments) {
                 VStack(spacing: Spacing.xxs) {
                     SizeText(model.report.map { $0.tree.allocatedSize(of: $0.tree.root) } ?? 0)
-                        .font(.rakerHero)
+                        .font(.system(size: 31, weight: .semibold, design: .rounded))
                     Text("in \(model.scope.title)")
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: 130)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -150,6 +212,9 @@ struct OverviewView: View {
         switch model.phase {
         case .finished:
             VStack(alignment: .leading, spacing: Spacing.m) {
+                if sortedKinds.isEmpty {
+                    explainer(title: "No measurable files", text: "This folder has no file sizes to chart.")
+                }
                 ForEach(sortedKinds, id: \.kind) { entry in
                     HStack(spacing: Spacing.m) {
                         Image(systemName: entry.kind.symbol)
@@ -198,7 +263,7 @@ struct OverviewView: View {
     private var cards: some View {
         if model.phase == .finished, let report = model.report {
             let tree = report.tree
-            HStack(alignment: .top, spacing: Spacing.l) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 176), spacing: Spacing.m)], spacing: Spacing.m) {
                 if let folder = tree.largestChildren(of: tree.root, limit: 1).first {
                     InsightCard(title: "Largest item", symbol: "arrow.up.right.circle", tint: Palette.installers,
                                 value: ByteCount(tree.allocatedSize(of: folder)).formatted,
@@ -213,8 +278,8 @@ struct OverviewView: View {
                             value: tree.descendantCount(of: tree.root).formatted(),
                             detail: "in \(report.duration.formatted(.units(allowed: [.seconds, .milliseconds], width: .abbreviated)))")
                 if report.skipped.isEmpty {
-                    InsightCard(title: "Everything readable", symbol: "lock.open", tint: Palette.rebuildsAutomatically,
-                                value: "0", detail: "No locations were skipped")
+                    InsightCard(title: "Skipped locations", symbol: "lock.open", tint: Palette.rebuildsAutomatically,
+                                value: "0", detail: "All locations were readable")
                 } else {
                     Button {
                         model.isShowingSkipped = true
@@ -243,9 +308,10 @@ struct InsightCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            Label(title, systemImage: symbol)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(tint)
+            HStack(spacing: Spacing.s) {
+                SymbolTile(symbol, tint: tint, size: 26)
+                Text(title).font(.subheadline.weight(.semibold))
+            }
             Text(value)
                 .font(.rakerMetric)
                 .monospacedDigit()
@@ -256,7 +322,7 @@ struct InsightCard: View {
                 .lineLimit(2)
                 .truncationMode(.middle)
         }
-        .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 78, alignment: .topLeading)
         .padding(Spacing.l)
         .surfaceCard()
     }

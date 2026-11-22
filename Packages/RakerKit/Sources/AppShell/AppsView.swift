@@ -43,13 +43,13 @@ struct AppsView: View {
                 ProgressView("Finding your apps…")
                     .controlSize(.large)
             } else {
-                ContentUnavailableView("No apps found", systemImage: "square.grid.2x2",
-                                       description: Text("Raker looks in /Applications and ~/Applications."))
+                WorkspaceState(title: "No apps found", symbol: "square.grid.2x2",
+                               detail: "Raker looks in /Applications and ~/Applications.", tint: Palette.iris)
             }
         } else {
             HStack(spacing: 0) {
                 appList
-                    .frame(width: 320)
+                    .frame(minWidth: 220, idealWidth: 270, maxWidth: 300)
                 Divider()
                 AppDetailView(model: model)
                     .frame(maxWidth: .infinity)
@@ -59,9 +59,22 @@ struct AppsView: View {
 
     private var appList: some View {
         VStack(spacing: 0) {
-            TextField("Search apps", text: $model.appSearch)
-                .textFieldStyle(.roundedBorder)
-                .padding(Spacing.m)
+            HStack(spacing: Spacing.s) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Search apps", text: $model.appSearch)
+                    .textFieldStyle(.plain)
+                    .accessibilityLabel("Search apps")
+                if !model.appSearch.isEmpty {
+                    Button { model.appSearch = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Clear search")
+                }
+            }
+            .padding(Spacing.s)
+            .surfaceCard(cornerRadius: Radius.control)
+            .padding(Spacing.m)
             List(selection: $model.selectedAppPath) {
                 ForEach(model.visibleApps) { app in
                     AppRow(app: app, size: model.appSizes[app.path], lastOpened: model.appLastOpened[app.path],
@@ -70,6 +83,11 @@ struct AppsView: View {
                 }
             }
             .listStyle(.inset)
+            .overlay {
+                if model.visibleApps.isEmpty {
+                    ContentUnavailableView.search(text: model.appSearch)
+                }
+            }
             Divider()
             let intel = model.installedApps.filter { $0.architecture == .intel }.count
             Text("\(model.installedApps.count.formatted()) apps" + (intel > 0 ? " · \(intel.formatted()) for Intel only" : ""))
@@ -120,7 +138,7 @@ struct AppRow: View {
                     .controlSize(.mini)
             }
         }
-        .padding(.vertical, Spacing.xxs)
+        .padding(.vertical, Spacing.xs)
     }
 
     private var subtitle: String {
@@ -169,11 +187,8 @@ struct AppDetailView: View {
             .listStyle(.inset)
             .id(app.path)
         } else {
-            ContentUnavailableView {
-                Label("Select an app", systemImage: "square.grid.2x2")
-            } description: {
-                Text("See everything an app keeps on your Mac, then uninstall it or reset it.")
-            }
+            WorkspaceState(title: "Select an app", symbol: "square.grid.2x2",
+                           detail: "See everything an app keeps on your Mac, then uninstall it or reset it.", tint: Palette.iris)
         }
     }
 
@@ -210,7 +225,8 @@ struct AppDetailView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, Spacing.s)
+        .padding(Spacing.m)
+        .surfaceCard()
     }
 
     private func actions(_ app: AppBundleInfo) -> some View {
