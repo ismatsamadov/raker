@@ -2,6 +2,7 @@ import FileSystemKit
 import Foundation
 import RakerFoundation
 import RakerModel
+import SafetyPolicy
 import SpaceIndex
 import Synchronization
 
@@ -15,10 +16,13 @@ public struct DuplicateFinder: Sendable {
     public struct Options: Sendable, Hashable {
         public var minimumSize: UInt64
         public var homeDirectory: String
+        /// Paths the user excluded; nothing at or inside them is compared.
+        public var exclusions: [String]
 
-        public init(minimumSize: UInt64 = 100_000, homeDirectory: String = NSHomeDirectory()) {
+        public init(minimumSize: UInt64 = 100_000, homeDirectory: String = NSHomeDirectory(), exclusions: [String] = []) {
             self.minimumSize = minimumSize
             self.homeDirectory = homeDirectory
+            self.exclusions = exclusions
         }
     }
 
@@ -119,9 +123,12 @@ public struct DuplicateFinder: Sendable {
         }
     }
 
-    /// Regular files large enough to matter, outside app bundles, ~/Library and hidden folders.
+    /// Regular files large enough to matter, outside app bundles, ~/Library, hidden folders
+    /// and the user's exclusions.
     func candidates(in tree: SizeTree) -> [SizeTree.Index] {
         let library = Paths.join(options.homeDirectory, "Library")
+        let policy = SafetyPolicy(homeDirectory: options.homeDirectory, exclusions: options.exclusions)
+        let excludes = !options.exclusions.isEmpty
         var result: [SizeTree.Index] = []
         var stack = [tree.root]
         while let current = stack.popLast() {
@@ -133,9 +140,12 @@ public struct DuplicateFinder: Sendable {
                 case .directory:
                     let name = tree.name(of: child)
                     if Self.isPackage(name) || tree.path(of: child) == library { continue }
+                    if excludes, policy.evaluate(tree.path(of: child)) == .denied(.userExcluded) { continue }
                     stack.append(child)
                 case .file:
-                    if tree.size(of: child).logical >= options.minimumSize { result.append(child) }
+                    guard tree.size(of: child).logical >= options.minimumSize else { continue }
+                    if excludes, policy.evaluate(tree.path(of: child)) == .denied(.userExcluded) { continue }
+                    result.append(child)
                 case .symlink, .other:
                     continue
                 }

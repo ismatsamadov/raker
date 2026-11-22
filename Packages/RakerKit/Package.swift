@@ -52,7 +52,10 @@ let package = Package(
             name: "CleanEngine",
             dependencies: ["RakerFoundation", "RakerModel", "SafetyPolicy", "FileSystemKit", "Persistence"]
         ),
-        .target(name: "DuplicateEngine", dependencies: ["RakerFoundation", "RakerModel", "FileSystemKit", "SpaceIndex"]),
+        .target(
+            name: "DuplicateEngine",
+            dependencies: ["RakerFoundation", "RakerModel", "SafetyPolicy", "FileSystemKit", "SpaceIndex"]
+        ),
 
         // Presentation
         .target(name: "DesignSystem", dependencies: ["RakerFoundation"]),

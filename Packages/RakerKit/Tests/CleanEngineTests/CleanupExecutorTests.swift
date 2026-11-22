@@ -62,9 +62,10 @@ private struct Sandbox {
         )
     }
 
-    func executor(running: Set<String> = [], journal: JournalStore? = nil) -> CleanupExecutor {
-        CleanupExecutor(homeDirectory: home, trash: FolderTrash(folder: trash), apps: FakeApps(running: running),
-                        journal: journal, volumePath: root)
+    func executor(running: Set<String> = [], journal: JournalStore? = nil,
+                  exclusions: [String] = [], locked: [String] = []) -> CleanupExecutor {
+        CleanupExecutor(homeDirectory: home, exclusions: exclusions, lockedOriginals: locked, trash: FolderTrash(folder: trash),
+                        apps: FakeApps(running: running), journal: journal, volumePath: root)
     }
 
     func exists(_ path: String) -> Bool {
@@ -215,6 +216,23 @@ struct CleanupExecutorTests {
         #expect(done.movedToTrash.count == 1)
         #expect(sandbox.exists(keeper))
         #expect(!sandbox.exists(copy))
+    }
+
+    @Test("Never removes what the user excluded or locked as an original")
+    func userRules() async throws {
+        let sandbox = try Sandbox()
+        defer { sandbox.remove() }
+        let excluded = try sandbox.file("Library/Caches/keep-me/data.bin")
+        let locked = try sandbox.file("Library/Caches/originals/photo.bin")
+        let plan = PlanBuilder.plan(for: [try sandbox.finding(excluded), try sandbox.finding(locked)],
+                                    deleteRegenerable: true, spaceBefore: nil)
+
+        let receipt = await sandbox.executor(exclusions: [sandbox.home + "/Library/Caches/keep-me"],
+                                             locked: [locked]).execute(plan)
+
+        #expect(receipt.items.map(\.outcome) == [.skipped(.protected), .skipped(.protected)])
+        #expect(sandbox.exists(excluded))
+        #expect(sandbox.exists(locked))
     }
 
     @Test("Preview reports what would happen without changing anything")

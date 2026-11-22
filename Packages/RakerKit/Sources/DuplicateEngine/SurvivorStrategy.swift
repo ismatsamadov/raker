@@ -18,9 +18,13 @@ public enum SurvivorStrategy: String, CaseIterable, Sendable, Codable {
         }
     }
 
-    /// The copy to keep. A locked original always wins.
-    public func keeper(in set: DuplicateSet, home: String = NSHomeDirectory(), locked: Set<String> = []) -> DuplicateFile {
-        if let original = set.files.first(where: { locked.contains($0.path) }) { return original }
+    /// The copy to keep. A locked original, or a file inside a locked folder, always wins.
+    public func keeper(in set: DuplicateSet, home: String = NSHomeDirectory(), locked: [String] = []) -> DuplicateFile {
+        if let original = set.files.first(where: { file in
+            locked.contains { file.path == $0 || file.path.hasPrefix($0.hasSuffix("/") ? $0 : $0 + "/") }
+        }) {
+            return original
+        }
         let files = set.files
         let chosen: DuplicateFile?
         switch self {

@@ -71,6 +71,24 @@ struct PersonalFileFinderTests {
         #expect(names == ["holiday.mov", "big.pdf"])
     }
 
+    @Test("Leaves out what the user excluded or locked")
+    func userRules() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.file("Downloads/Project/archive.zip", bytes: 50_000)
+        try fixture.file("Downloads/Keep.dmg", bytes: 40_000)
+        try fixture.file("Downloads/Other.dmg", bytes: 30_000)
+        let finder = PersonalFileFinder(
+            metadata: FakeMetadata(), installedAppNames: [], homeDirectory: fixture.path,
+            exclusions: [fixture.path + "/Downloads/Project"], lockedOriginals: [fixture.path + "/Downloads/Keep.dmg"]
+        )
+
+        let tree = try await ScanEngine().scan(ScanScope(path: fixture.path + "/Downloads")).tree
+        let names = finder.downloads(in: tree).map { ($0.id as NSString).lastPathComponent }
+
+        #expect(names == ["Other.dmg"])
+    }
+
     @Test("Can limit large files to ones not opened for a while")
     func notOpenedFilter() async throws {
         let fixture = try Fixture()

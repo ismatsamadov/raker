@@ -86,8 +86,22 @@ struct DuplicateFinderTests {
         #expect(set.reclaimable(keeping: original) == 0)
     }
 
-    @Test("Skips small files, hidden folders, app bundles and ~/Library")
+    @Test("Leaves out folders the user excluded")
     func exclusions() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.file("Pictures/a.bin", bytes: 50_000, seed: 3)
+        try fixture.file("Backups/a.bin", bytes: 50_000, seed: 3)
+        let tree = try await ScanEngine().scan(ScanScope(path: fixture.path)).tree
+
+        let excluded = await DuplicateFinder(options: .init(minimumSize: 1_000, homeDirectory: fixture.path,
+                                                            exclusions: [fixture.path + "/Backups"])).find(in: tree)
+
+        #expect(excluded.isEmpty)
+    }
+
+    @Test("Skips small files, hidden folders, app bundles and ~/Library")
+    func defaultExclusions() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.file("small1.txt", bytes: 500)
@@ -129,6 +143,7 @@ struct SurvivorStrategyTests {
         #expect(SurvivorStrategy.newest.keeper(in: set).path == "/b/photo.jpg")
         #expect(SurvivorStrategy.shortestPath.keeper(in: set).path == "/b/photo.jpg")
         #expect(SurvivorStrategy.newest.keeper(in: set, locked: ["/c/photo (1).jpg"]).path == "/c/photo (1).jpg")
+        #expect(SurvivorStrategy.newest.keeper(in: set, locked: ["/a/long"]).path == "/a/long/path/photo.jpg")
     }
 
     @Test("Recognizes copy-style names", arguments: [

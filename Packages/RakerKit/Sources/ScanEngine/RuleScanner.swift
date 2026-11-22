@@ -34,6 +34,15 @@ public struct RuleScanReport: Sendable {
     public func allocatedBytes(safety: SafetyLevel) -> UInt64 {
         groups.filter { $0.rule.safety.level == safety }.reduce(0) { $0 &+ $1.allocatedBytes }
     }
+
+    /// The same report with only the findings that pass `isIncluded`; emptied groups are dropped.
+    public func filtered(_ isIncluded: (Finding) -> Bool) -> RuleScanReport {
+        let kept = groups.compactMap { group -> RuleFindingGroup? in
+            let findings = group.findings.filter(isIncluded)
+            return findings.isEmpty ? nil : RuleFindingGroup(rule: group.rule, findings: findings)
+        }
+        return RuleScanReport(groups: kept, duration: duration, packVersion: packVersion)
+    }
 }
 
 /// Applies a rule pack to the disk and produces explained findings.
@@ -54,11 +63,12 @@ public struct RuleScanner: Sendable {
         environment: PathEnvironment = .current(),
         apps: any AppDirectory,
         exclusions: [String] = [],
+        lockedOriginals: [String] = [],
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.pack = pack
         self.environment = environment
-        self.policy = SafetyPolicy(homeDirectory: environment.home, exclusions: exclusions)
+        self.policy = SafetyPolicy(homeDirectory: environment.home, exclusions: exclusions, lockedOriginals: lockedOriginals)
         self.apps = apps
         self.now = now
     }

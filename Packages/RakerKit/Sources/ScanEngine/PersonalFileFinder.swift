@@ -28,15 +28,20 @@ public struct PersonalFileFinder: Sendable {
     private let homeDirectory: String
     private let now: @Sendable () -> Date
 
+    /// - Parameters:
+    ///   - exclusions: Paths the user excluded; nothing at or inside them is listed.
+    ///   - lockedOriginals: Originals the user locked; never suggested for removal.
     public init(
         metadata: any FileMetadataSource,
         installedAppNames: [String],
         homeDirectory: String = NSHomeDirectory(),
+        exclusions: [String] = [],
+        lockedOriginals: [String] = [],
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.metadata = metadata
         self.installedAppNames = installedAppNames
-        self.policy = SafetyPolicy(homeDirectory: homeDirectory)
+        self.policy = SafetyPolicy(homeDirectory: homeDirectory, exclusions: exclusions, lockedOriginals: lockedOriginals)
         self.homeDirectory = homeDirectory
         self.now = now
     }

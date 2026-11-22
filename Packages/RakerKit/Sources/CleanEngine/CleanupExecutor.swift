@@ -28,13 +28,14 @@ public struct CleanupExecutor: Sendable {
     public init(
         homeDirectory: String = NSHomeDirectory(),
         exclusions: [String] = [],
+        lockedOriginals: [String] = [],
         trash: any TrashService = SystemTrash(),
         apps: any AppDirectory,
         journal: JournalStore?,
         volumePath: String? = nil,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
-        self.policy = SafetyPolicy(homeDirectory: homeDirectory, exclusions: exclusions)
+        self.policy = SafetyPolicy(homeDirectory: homeDirectory, exclusions: exclusions, lockedOriginals: lockedOriginals)
         self.trash = trash
         self.apps = apps
         self.journal = journal
