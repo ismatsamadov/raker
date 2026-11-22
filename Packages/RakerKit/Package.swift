@@ -86,7 +86,10 @@ let package = Package(
             name: "ScanEngineTests",
             dependencies: ["ScanEngine", "SpaceIndex", "FileSystemKit", "RuleEngine", "RakerModel"]
         ),
-        .testTarget(name: "PersistenceTests", dependencies: ["Persistence", "RakerModel"]),
+        .testTarget(
+            name: "PersistenceTests",
+            dependencies: ["Persistence", "RakerModel", .product(name: "GRDB", package: "GRDB.swift")]
+        ),
         .testTarget(name: "CleanEngineTests", dependencies: ["CleanEngine", "Persistence", "FileSystemKit", "RakerModel"]),
         .testTarget(
             name: "DuplicateEngineTests",

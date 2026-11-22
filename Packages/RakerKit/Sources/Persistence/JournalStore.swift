@@ -3,26 +3,17 @@ import GRDB
 import RakerModel
 
 /// The history of cleanups: what was removed, where it went, and what was put back.
-public final class JournalStore: Sendable {
-    private let writer: any DatabaseWriter
+public struct JournalStore: Sendable {
+    let writer: any DatabaseWriter
 
-    /// Opens a store on any GRDB writer and brings its schema up to date.
-    public init(writer: any DatabaseWriter) throws {
-        self.writer = writer
-        try Self.migrator.migrate(writer)
-    }
-
-    /// The store in Raker's Application Support folder, created if needed.
+    /// The journal in Raker's database, created if needed.
     public static func open(at url: URL = AppPaths.database) throws -> JournalStore {
-        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        var configuration = Configuration()
-        configuration.label = "Raker journal"
-        return try JournalStore(writer: DatabasePool(path: url.path, configuration: configuration))
+        try AppDatabase.open(at: url).journal
     }
 
-    /// A store that lives in memory, for tests and previews.
+    /// A journal that lives in memory, for tests and previews.
     public static func inMemory() throws -> JournalStore {
-        try JournalStore(writer: DatabaseQueue())
+        try AppDatabase.inMemory().journal
     }
 
     public func save(_ receipt: CleanupReceipt) throws {
@@ -71,32 +62,6 @@ public final class JournalStore: Sendable {
             spaceBefore: cleanup.spaceBefore,
             spaceAfter: cleanup.spaceAfter
         )
-    }
-
-    /// Schema changes, in order. Never edit a registered migration; add a new one.
-    static var migrator: DatabaseMigrator {
-        var migrator = DatabaseMigrator()
-        migrator.registerMigration("v1: cleanup history") { db in
-            try db.create(table: "cleanup") { table in
-                table.primaryKey("id", .text)
-                table.column("startedAt", .datetime).notNull()
-                table.column("finishedAt", .datetime).notNull()
-                table.column("spaceBefore", .jsonText)
-                table.column("spaceAfter", .jsonText)
-            }
-            try db.create(table: "cleanupItem") { table in
-                table.primaryKey("id", .text)
-                table.belongsTo("cleanup", onDelete: .cascade).notNull()
-                table.column("position", .integer).notNull()
-                table.column("findingId", .text).notNull()
-                table.column("path", .text).notNull()
-                table.column("destination", .jsonText).notNull()
-                table.column("size", .jsonText).notNull()
-                table.column("outcome", .jsonText).notNull()
-                table.column("restoredAt", .datetime)
-            }
-        }
-        return migrator
     }
 }
 
