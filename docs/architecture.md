@@ -1233,7 +1233,7 @@ A dry-run mode (a developer setting in the app, and `raker clean --dry-run`) bui
 ## 17. Build, release and distribution
 
 - **Toolchain.** Xcode 27 with Swift 6.4. The app targets need the full Xcode; the Command Line Tools alone can build and test the Swift package.
-- **Development signing.** Use a stable Apple Development identity. Privacy grants such as Full Disk Access are tied to the code signature, so ad-hoc builds lose them on every rebuild.
+- **Development signing.** Use a stable identity: an Apple Development certificate, or the self-signed one `Scripts/setup-dev-signing.sh` creates in a keychain of its own. Privacy grants such as Full Disk Access are tied to the code signature, so ad-hoc builds lose them on every rebuild.
 - **CI** (`ci.yml`, every pull request): `swift build` and `swift test` for the package, `xcodebuild test` for the app targets, `swift format lint`, rule compile, lint and test, and snapshot tests. Benchmarks run on `main`.
 - **Release** (`release.yml`, on a version tag): universal archive → Developer ID signing (certificate from encrypted secrets, imported into a temporary keychain) → `notarytool submit --wait` with an App Store Connect API key → staple → signed, notarized DMG → Sparkle `generate_appcast` with the EdDSA key → GitHub Release, plus the appcast on GitHub Pages → Homebrew cask update. Signing secrets live in a GitHub environment that requires reviewer approval.
 - **Rules** (`rules.yml`): on merge to `main`, compile, test and sign with a separate key, then publish to `beta`. Promotion to `stable` is manual.

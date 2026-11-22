@@ -55,6 +55,8 @@ swift run raker exclusions                  # list them; --remove <path> to drop
 swift run raker volume
 swift run raker check ~/Library/Caches/com.example ~/Documents/file.pdf
 
-# SwiftUI shell, wrapped in an app bundle and opened
+# SwiftUI shell, wrapped in an app bundle and opened. Run setup-dev-signing.sh once
+# first, or macOS asks for folder access again after every rebuild.
+Scripts/setup-dev-signing.sh
 Scripts/run-dev-app.sh
 ```
