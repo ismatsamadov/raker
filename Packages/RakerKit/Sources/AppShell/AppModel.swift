@@ -1,3 +1,4 @@
+import AppKit
 import CleanEngine
 import DuplicateEngine
 import FileSystemKit
@@ -154,6 +155,12 @@ public final class AppModel {
     public private(set) var userRules: [UserRule] = []
     public var isChoosingExclusion = false
 
+    /// What Raker knows about each protected area.
+    public private(set) var access: AccessMap
+
+    private static let accessKey = "access.remembered"
+    @ObservationIgnored private var activationObserver: (any NSObjectProtocol)?
+
     private let engine = ScanEngine()
     private let apps = LaunchServicesAppDirectory()
     private let database = try? AppDatabase.open()
@@ -165,9 +172,18 @@ public final class AppModel {
     private var generation = 0
 
     public init() {
+        let defaults = UserDefaults.standard
+        access = AccessMap(remembered: defaults.dictionary(forKey: Self.accessKey) as? [String: String] ?? [:])
         refreshVolume()
         refreshHistory()
         refreshUserRules()
+        refreshAccess()
+        // Access given in System Settings shows up as soon as the person comes back.
+        activationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshAccess() }
+        }
     }
 
     public var isScanning: Bool { phase == .scanning }
@@ -193,6 +209,9 @@ public final class AppModel {
                     }
                 }
                 let tree = report.tree
+                if report.completed {
+                    learnAccess { $0.learn(fromScanOf: tree.rootPath, skipped: report.skipped, homeDirectory: NSHomeDirectory()) }
+                }
                 let breakdown = await Task.detached(priority: .userInitiated) {
                     StorageKindClassifier.breakdown(of: tree, under: tree.root)
                 }.value
@@ -203,6 +222,7 @@ public final class AppModel {
                 self.phase = .finished
                 refreshLargeFiles()
             } catch {
+                learnAccess(from: error)
                 guard generation == current else { return }
                 phase = .failed(Self.describe(error))
             }
@@ -232,6 +252,7 @@ public final class AppModel {
         let scanner = RuleScanner(pack: pack, apps: apps, exclusions: userRules.exclusions, lockedOriginals: userRules.lockedOriginals)
         Task {
             let report = await scanner.scan()
+            learnAccess { $0.learn(refused: report.unreadable) }
             cleanupReport = report
             cleanupSelection = Set(report.findings.filter(\.preselected).map(\.id))
             cleanupPhase = .finished
@@ -307,12 +328,15 @@ public final class AppModel {
         let finder = makeFinder()
         Task {
             do throws(ScanError) {
-                let tree = try await engine.scan(ScanScope(path: path)).tree
+                let report = try await engine.scan(ScanScope(path: path))
+                let tree = report.tree
+                learnAccess { $0.learn(fromScanOf: tree.rootPath, skipped: report.skipped, homeDirectory: NSHomeDirectory()) }
                 let findings = await Task.detached(priority: .userInitiated) { finder.downloads(in: tree) }.value
                 downloadsFindings = findings
                 downloadsSelection = []
                 downloadsPhase = .finished
             } catch {
+                learnAccess(from: error)
                 downloadsPhase = .failed(Self.describe(error))
             }
         }
@@ -520,6 +544,43 @@ public final class AppModel {
             return files.count > 1 ? DuplicateSet(id: set.id, size: set.size, allocatedPerCopy: set.allocatedPerCopy, files: files) : nil
         }
         duplicatesSelection = duplicatesSelection.filter { !blocked($0) }
+    }
+
+    // MARK: Access
+
+    /// Checks again what can be checked without macOS asking anything.
+    public func refreshAccess() {
+        let areas = access.areasToCheck
+        let probe = AccessProbe()
+        Task {
+            let states = await Task.detached(priority: .utility) { probe.check(areas) }.value
+            learnAccess { map in
+                for (area, state) in states { map[area] = state }
+            }
+        }
+    }
+
+    /// Reads a Files & Folders area, which makes macOS ask if it hasn't already.
+    public func requestAccess(to area: ProtectedArea) {
+        let probe = AccessProbe()
+        Task {
+            let state = await Task.detached(priority: .userInitiated) { probe.check(area) }.value
+            learnAccess { $0[area] = state }
+        }
+    }
+
+    private func learnAccess(_ update: (inout AccessMap) -> Void) {
+        var updated = access
+        update(&updated)
+        guard updated != access else { return }
+        access = updated
+        UserDefaults.standard.set(updated.remembered, forKey: Self.accessKey)
+    }
+
+    private func learnAccess(from error: ScanError) {
+        if case .rootUnreadable(let path, let code) = error, code == .EPERM || code == .EACCES {
+            learnAccess { $0.learn(unreadableRoot: path, homeDirectory: NSHomeDirectory()) }
+        }
     }
 
     public func refreshVolume() {
