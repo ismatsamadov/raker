@@ -1,17 +1,30 @@
 {
   "schema": 1,
-  "version": "2026.11.0",
+  "version": "2026.11.1",
   "rules": [
     {
       "id": "browser.chrome.cache",
       "title": "Google Chrome cache",
-      "explanation": "Copies of pages, images and scripts Chrome keeps so sites load faster.",
+      "explanation": "Copies of pages, images and scripts, and compiled code and graphics, Chrome keeps so sites load faster.",
       "ifRemoved": "Chrome downloads them again as you browse. Sites may load a little slower at first.",
       "category": "caches.browsers",
       "safety": "regenerable",
       "appBundleIDs": ["com.google.Chrome"],
       "whileRunning": "requireQuit",
-      "targets": [{ "path": "~/Library/Caches/Google/Chrome", "scope": "contents" }]
+      "targets": [
+        { "path": "~/Library/Caches/Google/Chrome", "scope": "contents" },
+        { "path": "~/Library/Application Support/Google/Chrome/*/Code Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Google/Chrome/*/GPUCache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Google/Chrome/*/DawnGraphiteCache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Google/Chrome/*/DawnWebGPUCache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Google/Chrome/GPUPersistentCache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Google/Chrome/GraphiteDawnCache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Google/Chrome/GrShaderCache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Google/Chrome/ShaderCache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Google/Chrome/component_crx_cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Google/Chrome/extensions_crx_cache", "scope": "contents" },
+        { "path": "$DARWIN_USER_CACHE_DIR/com.google.Chrome.helper", "scope": "contents" }
+      ]
     },
     {
       "id": "browser.chrome.codeSignClone",
@@ -37,7 +50,95 @@
         { "path": "~/Library/Application Support/Code/Cache", "scope": "contents" },
         { "path": "~/Library/Application Support/Code/CachedData", "scope": "contents" },
         { "path": "~/Library/Application Support/Code/CachedExtensionVSIXs", "scope": "contents" },
-        { "path": "~/Library/Application Support/Code/Code Cache", "scope": "contents" }
+        { "path": "~/Library/Application Support/Code/Code Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Code/GPUCache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Code/DawnGraphiteCache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Code/DawnWebGPUCache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Code/Partitions/*/Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Code/Partitions/*/Code Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Code/Partitions/*/GPUCache", "scope": "contents" },
+        { "path": "$DARWIN_USER_CACHE_DIR/com.microsoft.VSCode.helper", "scope": "contents" }
+      ]
+    },
+    {
+      "id": "apps.cursor.cache",
+      "title": "Cursor cache",
+      "explanation": "Compiled code, data and extension downloads Cursor keeps so it starts faster.",
+      "ifRemoved": "Cursor rebuilds them. The next launch may be a little slower.",
+      "category": "caches.apps",
+      "safety": "regenerable",
+      "appBundleIDs": ["com.todesktop.230313mzl4w4u92"],
+      "whileRunning": "requireQuit",
+      "targets": [
+        { "path": "~/Library/Application Support/Cursor/Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Cursor/CachedData", "scope": "contents" },
+        { "path": "~/Library/Application Support/Cursor/CachedExtensionVSIXs", "scope": "contents" },
+        { "path": "~/Library/Application Support/Cursor/Code Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Cursor/GPUCache", "scope": "contents" }
+      ]
+    },
+    {
+      "id": "apps.slack.cache",
+      "title": "Slack cache",
+      "explanation": "Images, files and code Slack keeps so it loads faster.",
+      "ifRemoved": "Slack downloads them again as you use it. Your messages aren't affected.",
+      "category": "caches.apps",
+      "safety": "regenerable",
+      "appBundleIDs": ["com.tinyspeck.slackmacgap"],
+      "whileRunning": "requireQuit",
+      "targets": [
+        { "path": "~/Library/Application Support/Slack/Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Slack/Code Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Slack/GPUCache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Slack/Service Worker/CacheStorage", "scope": "contents" }
+      ]
+    },
+    {
+      "id": "apps.discord.cache",
+      "title": "Discord cache",
+      "explanation": "Images, videos and code Discord keeps so it loads faster.",
+      "ifRemoved": "Discord downloads them again as you use it. Your messages aren't affected.",
+      "category": "caches.apps",
+      "safety": "regenerable",
+      "appBundleIDs": ["com.hnc.Discord"],
+      "whileRunning": "requireQuit",
+      "targets": [
+        { "path": "~/Library/Application Support/discord/Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/discord/Code Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/discord/GPUCache", "scope": "contents" }
+      ]
+    },
+    {
+      "id": "apps.notion.cache",
+      "title": "Notion cache",
+      "explanation": "Pages, images and code Notion keeps so it loads faster.",
+      "ifRemoved": "Notion downloads them again as you use it. Your pages stay in your workspace.",
+      "category": "caches.apps",
+      "safety": "regenerable",
+      "appBundleIDs": ["notion.id"],
+      "whileRunning": "requireQuit",
+      "targets": [
+        { "path": "~/Library/Application Support/Notion/Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Notion/Code Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Notion/GPUCache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Notion/Partitions/*/Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Notion/Partitions/*/Code Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Notion/Partitions/*/GPUCache", "scope": "contents" }
+      ]
+    },
+    {
+      "id": "apps.docker.cache",
+      "title": "Docker Desktop cache",
+      "explanation": "Code and graphics Docker Desktop's window keeps so it opens faster.",
+      "ifRemoved": "Docker Desktop rebuilds them. Your images, containers and volumes aren't affected.",
+      "category": "caches.apps",
+      "safety": "regenerable",
+      "appBundleIDs": ["com.docker.docker"],
+      "whileRunning": "requireQuit",
+      "targets": [
+        { "path": "~/Library/Application Support/Docker Desktop/Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Docker Desktop/Code Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Docker Desktop/GPUCache", "scope": "contents" }
       ]
     },
     {
