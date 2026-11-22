@@ -1,3 +1,4 @@
+import DesignSystem
 import QuickLook
 import SwiftUI
 
@@ -18,6 +19,9 @@ public struct RakerScenes: Scene {
         .windowToolbarStyle(.unified)
         .commands {
             SidebarCommands()
+            CommandGroup(after: .help) {
+                Button("Welcome to Raker") { model.showFirstRun() }
+            }
         }
 
         Settings {
@@ -35,12 +39,25 @@ public struct RakerRootView: View {
     }
 
     public var body: some View {
+        Group {
+            if model.isShowingFirstRun {
+                FirstRunView(model: model)
+                    .transition(.opacity)
+            } else {
+                mainWindow
+                    .transition(.opacity)
+            }
+        }
+        .frame(minWidth: 960, minHeight: 640)
+        .animation(Motion.smooth, value: model.isShowingFirstRun)
+    }
+
+    private var mainWindow: some View {
         NavigationSplitView {
             SidebarView(selection: $model.selection)
         } detail: {
             detail(for: model.selection ?? .overview)
         }
-        .frame(minWidth: 960, minHeight: 640)
         .overlay {
             if model.isCleaning {
                 CleaningProgressView(progress: model.cleanupProgress)

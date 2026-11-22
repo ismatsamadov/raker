@@ -166,7 +166,26 @@ public final class AppModel {
         case exclusions
     }
 
+    /// First run: a welcome, then what to scan first. The scan itself, on the Overview, is the
+    /// last step.
+    public var isShowingFirstRun: Bool
+    public var firstRunStep: FirstRunStep = .welcome
+    public var firstRunChoice: FirstRunChoice = .downloads
+    public var isChoosingFirstRunFolder = false
+
+    public enum FirstRunStep: Hashable {
+        case welcome
+        case chooseScope
+    }
+
+    public enum FirstRunChoice: Hashable {
+        case downloads
+        case home
+        case folder
+    }
+
     private static let accessKey = "access.remembered"
+    private static let firstRunKey = "firstRun.completed"
     @ObservationIgnored private var activationObserver: (any NSObjectProtocol)?
 
     private let engine = ScanEngine()
@@ -182,6 +201,7 @@ public final class AppModel {
     public init() {
         let defaults = UserDefaults.standard
         access = AccessMap(remembered: defaults.dictionary(forKey: Self.accessKey) as? [String: String] ?? [:])
+        isShowingFirstRun = !defaults.bool(forKey: Self.firstRunKey)
         refreshVolume()
         refreshHistory()
         refreshUserRules()
@@ -589,6 +609,30 @@ public final class AppModel {
         if case .rootUnreadable(let path, let code) = error, code == .EPERM || code == .EACCES {
             learnAccess { $0.learn(unreadableRoot: path, homeDirectory: NSHomeDirectory()) }
         }
+    }
+
+    // MARK: First run
+
+    /// Starts the scan chosen on the second screen, asking for the folder first if needed.
+    public func startFirstScan() {
+        switch firstRunChoice {
+        case .downloads: finishFirstRun(scanning: .downloads)
+        case .home: finishFirstRun(scanning: .home)
+        case .folder: isChoosingFirstRunFolder = true
+        }
+    }
+
+    public func showFirstRun() {
+        firstRunStep = .welcome
+        isShowingFirstRun = true
+    }
+
+    public func finishFirstRun(scanning scope: ScanScopeChoice) {
+        UserDefaults.standard.set(true, forKey: Self.firstRunKey)
+        self.scope = scope
+        selection = .overview
+        isShowingFirstRun = false
+        startScan()
     }
 
     public func refreshVolume() {
