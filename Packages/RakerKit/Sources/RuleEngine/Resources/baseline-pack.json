@@ -153,6 +153,85 @@
       "targets": [{ "path": "~/Library/Developer/Xcode/DerivedData", "scope": "contents" }]
     },
     {
+      "id": "dev.xcode.deviceSupport",
+      "title": "Device support files",
+      "explanation": "Debugging files Xcode copied from each iPhone, iPad, Apple Watch, Apple TV or Vision Pro you connected.",
+      "ifRemoved": "Xcode copies them again the next time you debug on that device, which takes a few minutes.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "appBundleIDs": ["com.apple.dt.Xcode"],
+      "whileRunning": "requireQuit",
+      "targets": [
+        { "path": "~/Library/Developer/Xcode/iOS DeviceSupport", "scope": "contents" },
+        { "path": "~/Library/Developer/Xcode/watchOS DeviceSupport", "scope": "contents" },
+        { "path": "~/Library/Developer/Xcode/tvOS DeviceSupport", "scope": "contents" },
+        { "path": "~/Library/Developer/Xcode/visionOS DeviceSupport", "scope": "contents" },
+        { "path": "~/Library/Developer/Xcode/macOS DeviceSupport", "scope": "contents" }
+      ]
+    },
+    {
+      "id": "dev.xcode.previews",
+      "title": "Xcode previews",
+      "explanation": "Builds and simulators Xcode creates to show SwiftUI previews.",
+      "ifRemoved": "Xcode creates them again the next time you open a preview, which takes a little longer.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "appBundleIDs": ["com.apple.dt.Xcode"],
+      "whileRunning": "requireQuit",
+      "targets": [{ "path": "~/Library/Developer/Xcode/UserData/Previews", "scope": "contents" }]
+    },
+    {
+      "id": "dev.xcode.documentation",
+      "title": "Xcode documentation cache",
+      "explanation": "Documentation Xcode downloaded and indexed for its viewer.",
+      "ifRemoved": "Xcode downloads it again when you open the documentation.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "appBundleIDs": ["com.apple.dt.Xcode"],
+      "whileRunning": "requireQuit",
+      "targets": [{ "path": "~/Library/Developer/Xcode/DocumentationCache", "scope": "contents" }]
+    },
+    {
+      "id": "dev.xcode.testDevices",
+      "title": "Test simulator copies",
+      "explanation": "Copies of simulators Xcode makes to run tests in parallel.",
+      "ifRemoved": "Xcode makes new copies the next time you run tests.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "appBundleIDs": ["com.apple.dt.Xcode"],
+      "whileRunning": "requireQuit",
+      "targets": [{ "path": "~/Library/Developer/XCTestDevices", "scope": "contents" }]
+    },
+    {
+      "id": "dev.simulator.caches",
+      "title": "Simulator caches",
+      "explanation": "Data simulators keep to start faster, built for each version of iOS and the other systems.",
+      "ifRemoved": "Simulators rebuild it, so their first launch afterwards is slower.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "appBundleIDs": ["com.apple.iphonesimulator", "com.apple.dt.Xcode"],
+      "whileRunning": "requireQuit",
+      "targets": [{ "path": "~/Library/Developer/CoreSimulator/Caches", "scope": "contents" }]
+    },
+    {
+      "id": "dev.xcode.archives",
+      "title": "Xcode archives",
+      "explanation": "Builds you archived to distribute, with the symbols needed to read their crash reports.",
+      "ifRemoved": "You can't read crash reports from those builds or submit them again. Keep the archives of versions people use.",
+      "category": "developer.archives",
+      "safety": "review",
+      "targets": [{ "path": "~/Library/Developer/Xcode/Archives", "scope": "contents" }]
+    },
+    {
+      "id": "dev.clang.moduleCache",
+      "title": "Compiler module cache",
+      "explanation": "Modules clang and Swift precompile so builds go faster.",
+      "ifRemoved": "The compiler builds them again, so the next build of each project takes longer.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "targets": [{ "path": "$DARWIN_USER_CACHE_DIR/clang/ModuleCache", "scope": "contents" }]
+    },
+    {
       "id": "dev.go.buildCache",
       "title": "Go build cache",
       "explanation": "Compiled packages the Go toolchain keeps to speed up builds.",
@@ -160,6 +239,15 @@
       "category": "developer.caches",
       "safety": "regenerable",
       "targets": [{ "path": "~/Library/Caches/go-build", "scope": "contents" }]
+    },
+    {
+      "id": "dev.go.moduleCache",
+      "title": "Go module cache",
+      "explanation": "Source code of the Go modules your projects use, downloaded by the Go toolchain.",
+      "ifRemoved": "Go downloads modules again when a project builds. Go keeps them read-only, so they go to the Trash as one folder.",
+      "category": "developer.caches",
+      "safety": "review",
+      "targets": [{ "path": "~/go/pkg/mod", "scope": "item" }]
     },
     {
       "id": "dev.homebrew.downloads",
@@ -214,6 +302,75 @@
       "category": "developer.caches",
       "safety": "regenerable",
       "targets": [{ "path": "~/Library/Caches/CocoaPods", "scope": "contents" }]
+    },
+    {
+      "id": "dev.pnpm.store",
+      "title": "pnpm store",
+      "explanation": "Packages pnpm downloaded once and shares between your projects.",
+      "ifRemoved": "Your projects keep working. pnpm downloads packages again for new installs.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "targets": [{ "path": "~/Library/pnpm/store", "scope": "contents" }]
+    },
+    {
+      "id": "dev.yarn.berryCache",
+      "title": "Yarn global cache",
+      "explanation": "Packages newer versions of Yarn downloaded, kept so installs are faster.",
+      "ifRemoved": "Yarn downloads packages again when a project needs them.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "targets": [{ "path": "~/.yarn/berry/cache", "scope": "contents" }]
+    },
+    {
+      "id": "dev.bun.cache",
+      "title": "Bun cache",
+      "explanation": "Packages Bun downloaded, kept so installs are faster.",
+      "ifRemoved": "Bun downloads packages again when a project needs them.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "targets": [{ "path": "~/.bun/install/cache", "scope": "contents" }]
+    },
+    {
+      "id": "dev.rust.cargoRegistry",
+      "title": "Rust crate cache",
+      "explanation": "Crates Cargo downloaded and unpacked for your projects.",
+      "ifRemoved": "Cargo downloads them again when a project builds.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "targets": [
+        { "path": "~/.cargo/registry/cache", "scope": "contents" },
+        { "path": "~/.cargo/registry/src", "scope": "contents" }
+      ]
+    },
+    {
+      "id": "dev.gradle.caches",
+      "title": "Gradle caches",
+      "explanation": "Dependencies, build outputs and Gradle versions downloaded for Android and Java projects.",
+      "ifRemoved": "Gradle downloads and rebuilds them, so the next build of each project takes longer.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "targets": [
+        { "path": "~/.gradle/caches", "scope": "contents" },
+        { "path": "~/.gradle/wrapper/dists", "scope": "contents" }
+      ]
+    },
+    {
+      "id": "dev.maven.repository",
+      "title": "Maven repository",
+      "explanation": "Java libraries Maven downloaded, and ones your own builds installed there.",
+      "ifRemoved": "Maven downloads what it needs again. Libraries you installed from your own projects must be built again.",
+      "category": "developer.caches",
+      "safety": "review",
+      "targets": [{ "path": "~/.m2/repository", "scope": "contents" }]
+    },
+    {
+      "id": "dev.android.systemImages",
+      "title": "Android emulator images",
+      "explanation": "System images the Android SDK downloaded to run emulators.",
+      "ifRemoved": "Emulators that use them stop working until you download the images again in Android Studio.",
+      "category": "developer.caches",
+      "safety": "review",
+      "targets": [{ "path": "~/Library/Android/sdk/system-images", "scope": "contents" }]
     },
     {
       "id": "dev.playwright.browsers",

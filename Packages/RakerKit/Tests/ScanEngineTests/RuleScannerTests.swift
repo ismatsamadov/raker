@@ -111,6 +111,26 @@ struct RuleScannerTests {
         #expect(!paths.contains(home.path("home/Library/Logs")))
     }
 
+    @Test("Finds Go's module cache as one folder, and never the code next to it")
+    func goModuleCache() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.file("home/go/pkg/mod/example.com/module@v1.0.0/module.go", bytes: 4_000)
+        try fixture.file("home/go/src/server/main.go", bytes: 2_000)
+        let environment = PathEnvironment(home: fixture.path + "/home", userRoot: fixture.path, userDirectory: fixture.path + "/0",
+                                          userTemporary: fixture.path + "/T", userCache: fixture.path + "/C")
+
+        let report = await RuleScanner(pack: try RulePackLoader.baseline(), environment: environment, apps: FakeApps()).scan()
+        // The baseline pack also looks in the real /private/tmp.
+        let found = report.findings.compactMap { finding -> (path: String, safety: SafetyLevel)? in
+            guard case .file(let ref) = finding.subject, ref.path.hasPrefix(fixture.path) else { return nil }
+            return (ref.path, finding.safety)
+        }
+
+        #expect(found.map(\.path) == [fixture.path + "/home/go/pkg/mod"])
+        #expect(found.first?.safety == .review)
+    }
+
     @Test("Labels owners, flags missing apps, and asks to quit running ones")
     func owners() async throws {
         let home = try Home()
