@@ -20,6 +20,14 @@ public struct RakerScenes: Scene {
         .windowToolbarStyle(.unified)
         .commands {
             SidebarCommands()
+            CommandGroup(after: .sidebar) {
+                Button(model.largestMode == .lens ? "Show as List" : "Show Space Lens") {
+                    model.selection = .largest
+                    model.largestMode = model.largestMode == .lens ? .list : .lens
+                }
+                .keyboardShortcut("l", modifiers: .command)
+                .disabled(model.report == nil)
+            }
             CommandGroup(after: .help) {
                 Button("Welcome to Raker") { model.showFirstRun() }
             }

@@ -14,6 +14,7 @@ import SafetyPolicy
 import ScanEngine
 import SpaceIndex
 import SystemKit
+import VisualizationKit
 
 /// What the user chose to scan.
 public enum ScanScopeChoice: Hashable, Sendable {
@@ -99,6 +100,55 @@ public final class AppModel {
 
     // View state lives in the model rather than in views, so screens stay declarative
     // and their state is testable.
+    public enum LargestMode: Hashable {
+        case list
+        case lens
+    }
+
+    public enum LensColoring: Hashable {
+        case folder
+        case age
+    }
+
+    /// Largest Items as a ranked list or as Space Lens; both show the same folder and selection.
+    public var largestMode: LargestMode = .list
+    public var lensColoring: LensColoring = .folder
+    public var lensHovered: SunburstSegment<SizeTree.Index>.Key?
+    @ObservationIgnored private var lensCache: (folder: SizeTree.Index, segments: [SunburstSegment<SizeTree.Index>])?
+
+    /// Space Lens for the folder shown, five rings deep, computed once per folder and scan.
+    public var lensSegments: [SunburstSegment<SizeTree.Index>] {
+        guard let tree = report?.tree else { return [] }
+        let folder = browsedIndex ?? tree.root
+        if let cache = lensCache, cache.folder == folder {
+            return cache.segments
+        }
+        let segments = SunburstLayout.segments(
+            root: folder,
+            value: { Double(tree.allocatedSize(of: $0)) },
+            children: { tree.largestChildren(of: $0) }
+        )
+        lensCache = (folder, segments)
+        return segments
+    }
+
+    /// The hovered segment and the folders around it, back to the center.
+    public var lensHighlight: Set<SunburstSegment<SizeTree.Index>.Key> {
+        guard let hovered = lensHovered, let tree = report?.tree else { return [] }
+        var keys: Set<SunburstSegment<SizeTree.Index>.Key> = [hovered]
+        var current: SizeTree.Index?
+        switch hovered {
+        case .item(let index): current = tree.parent(of: index)
+        case .smaller(let parent): current = parent
+        }
+        let folder = browsedIndex ?? tree.root
+        while let index = current, index != folder {
+            keys.insert(.item(index))
+            current = tree.parent(of: index)
+        }
+        return keys
+    }
+
     /// The folder shown in Largest Items.
     public var browsedIndex: SizeTree.Index? {
         didSet { inspectLocation() }
@@ -257,6 +307,8 @@ public final class AppModel {
                 guard generation == current else { return }
                 // Indices into the old tree would point at other items in the new one.
                 self.largestSelection = []
+                self.lensHovered = nil
+                self.lensCache = nil
                 self.report = report
                 self.breakdown = breakdown
                 self.browsedIndex = tree.root

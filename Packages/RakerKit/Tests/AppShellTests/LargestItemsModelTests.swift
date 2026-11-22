@@ -39,7 +39,7 @@ private func scanned(_ folder: String) async throws -> AppModel {
 @Suite("Largest Items in the app model")
 @MainActor
 struct LargestItemsModelTests {
-    @Test("A new scan starts afresh, without the old tree's selection")
+    @Test("A new scan starts afresh, without the old tree's selection, hover or Space Lens")
     func rescan() async throws {
         let folder = try makeFolder()
         defer { try? FileManager.default.removeItem(atPath: folder) }
@@ -50,14 +50,42 @@ struct LargestItemsModelTests {
         let old = try #require(model.report?.tree)
         let b = try #require(old.children(of: old.root).first { old.name(of: $0) == "b.bin" })
         model.selection = .largest
+        model.largestMode = .lens
         model.largestSelection = [b]
+        model.lensHovered = .item(b)
+        #expect(model.lensSegments.count == 2)
 
         try write(400_000, to: folder + "/c.bin")
         model.startScan()
+        // Space Lens stays on screen while the new scan runs, still showing the old tree.
+        #expect(model.lensSegments.count == 2)
         try await waitUntil { model.phase == .finished }
 
         let tree = try #require(model.report?.tree)
         #expect(model.largestSelection.isEmpty)
         #expect(model.inspectedLocation == tree.root)
+        #expect(model.lensHovered == nil)
+        let names = model.lensSegments.compactMap { segment -> String? in
+            guard case .item(let index) = segment.key else { return nil }
+            return tree.name(of: index)
+        }
+        #expect(names.sorted() == ["a.bin", "b.bin", "c.bin"])
+    }
+
+    @Test("Space Lens fills each ring, however many items a folder holds")
+    func crowdedFolder() async throws {
+        let folder = try makeFolder()
+        defer { try? FileManager.default.removeItem(atPath: folder) }
+        try write(1_000_000, to: folder + "/big.bin")
+        for number in 0 ..< 2_100 {
+            try write(5_000, to: folder + "/small-\(number).bin")
+        }
+        let model = try await scanned(folder)
+
+        let tree = try #require(model.report?.tree)
+        let big = try #require(tree.children(of: tree.root).first { tree.name(of: $0) == "big.bin" })
+        let ring = model.lensSegments.filter { $0.depth == 1 }
+        #expect(ring.map(\.key) == [.item(big), .smaller(parent: tree.root)])
+        #expect(abs((ring.last?.end ?? 0) - 1) < 1e-9)
     }
 }
