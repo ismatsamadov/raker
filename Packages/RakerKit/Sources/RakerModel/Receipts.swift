@@ -12,6 +12,8 @@ public enum SkipReason: Codable, Sendable, Hashable {
     case appRunning(bundleID: String)
     /// Synced with iCloud or another provider: removing it here would remove it everywhere.
     case synced
+    /// A duplicate whose kept copy is gone, changed, or also being removed.
+    case lastCopy
     /// Raker can't carry out this kind of action yet.
     case unsupported
 }

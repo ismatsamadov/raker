@@ -44,7 +44,8 @@ public struct CleanupExecutor: Sendable {
 
     /// What would happen to each item if the plan ran now. Changes nothing.
     public func preview(_ plan: CleanupPlan) -> [SkipReason?] {
-        plan.items.map(check)
+        let removing = Self.paths(in: plan)
+        return plan.items.map { check($0, removing: removing) }
     }
 
     /// Runs the plan, saves the receipt to the journal, and returns it.
@@ -66,6 +67,7 @@ public struct CleanupExecutor: Sendable {
     func executeBlocking(_ plan: CleanupPlan, onProgress: @Sendable (Progress) -> Void) -> CleanupReceipt {
         let startedAt = now()
         let spaceBefore = plan.spaceBefore ?? (try? VolumeInfo.space(containing: volumePath))
+        let removing = Self.paths(in: plan)
         var executed: [ExecutedItem] = []
         executed.reserveCapacity(plan.items.count)
 
@@ -73,7 +75,7 @@ public struct CleanupExecutor: Sendable {
             let path = Self.path(of: item.finding)
             onProgress(Progress(completed: index, total: plan.items.count, currentPath: path))
             let outcome: ItemOutcome
-            if let reason = check(item) {
+            if let reason = check(item, removing: removing) {
                 outcome = .skipped(reason)
             } else {
                 outcome = perform(item.destination, on: path ?? "")
@@ -107,7 +109,8 @@ public struct CleanupExecutor: Sendable {
     // MARK: - Checks
 
     /// Nil when the item may be acted on now; otherwise why it must be skipped.
-    func check(_ item: PlanItem) -> SkipReason? {
+    /// - Parameter removing: Every path the plan removes, so a duplicate's kept copy is never one of them.
+    func check(_ item: PlanItem, removing: Set<String>) -> SkipReason? {
         let finding = item.finding
         guard case .file(let ref) = finding.subject else { return .unsupported }
 
@@ -151,7 +154,20 @@ public struct CleanupExecutor: Sendable {
                 return .appRunning(bundleID: bundleID)
             }
         }
+
+        // A duplicate goes only while the copy that stays is still there, unchanged, and kept.
+        for evidence in finding.evidence {
+            guard case .duplicateOf(let keeperPath, let keeperIdentity) = evidence else { continue }
+            guard !removing.contains(keeperPath),
+                  let keeper = try? FileStatus.of(keeperPath), !keeper.isSymlink,
+                  keeper.identity == keeperIdentity
+            else { return .lastCopy }
+        }
         return nil
+    }
+
+    private static func paths(in plan: CleanupPlan) -> Set<String> {
+        Set(plan.items.compactMap { path(of: $0.finding) })
     }
 
     // MARK: - Actions

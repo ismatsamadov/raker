@@ -193,6 +193,7 @@ enum Receipts {
         case .protected: "protected by the safety policy"
         case .appRunning(let bundleID): "quit \(apps.installedApp(bundleID: bundleID)?.name ?? bundleID) first"
         case .synced: "synced with iCloud or another provider"
+        case .lastCopy: "the copy to keep is missing or changed"
         case .unsupported: "not supported yet"
         }
     }

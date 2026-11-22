@@ -186,6 +186,37 @@ struct CleanupExecutorTests {
         #expect(sandbox.exists(placeholder))
     }
 
+    @Test("Removes a duplicate only while the copy that stays is there, unchanged and kept")
+    func duplicates() async throws {
+        let sandbox = try Sandbox()
+        defer { sandbox.remove() }
+        let keeper = try sandbox.file("Pictures/photo.jpg")
+        let copy = try sandbox.file("Downloads/photo (1).jpg")
+        let keeperIdentity = try FileStatus.of(keeper).identity
+        var duplicate = try sandbox.finding(copy, safety: .review)
+        duplicate.evidence = [.duplicateOf(path: keeper, identity: keeperIdentity)]
+        var keeperFinding = try sandbox.finding(keeper, safety: .review)
+        keeperFinding.evidence = [.duplicateOf(path: copy, identity: try FileStatus.of(copy).identity)]
+
+        // Both copies in one plan: neither may go, or no copy would remain.
+        let both = await sandbox.executor().execute(PlanBuilder.plan(for: [duplicate, keeperFinding],
+                                                                      deleteRegenerable: false, spaceBefore: nil))
+        #expect(both.items.map(\.outcome) == [.skipped(.lastCopy), .skipped(.lastCopy)])
+
+        // The kept copy changed since the scan.
+        try Data(repeating: 0x42, count: 7).write(to: URL(fileURLWithPath: keeper))
+        let changed = await sandbox.executor().execute(PlanBuilder.plan(for: [duplicate], deleteRegenerable: false, spaceBefore: nil))
+        #expect(changed.items.map(\.outcome) == [.skipped(.lastCopy)])
+        #expect(sandbox.exists(copy))
+
+        // With the kept copy intact, the duplicate goes to the Trash.
+        duplicate.evidence = [.duplicateOf(path: keeper, identity: try FileStatus.of(keeper).identity)]
+        let done = await sandbox.executor().execute(PlanBuilder.plan(for: [duplicate], deleteRegenerable: false, spaceBefore: nil))
+        #expect(done.movedToTrash.count == 1)
+        #expect(sandbox.exists(keeper))
+        #expect(!sandbox.exists(copy))
+    }
+
     @Test("Preview reports what would happen without changing anything")
     func preview() throws {
         let sandbox = try Sandbox()

@@ -41,6 +41,9 @@ public enum Evidence: Codable, Sendable, Hashable {
     case ownerNotInstalled(bundleID: String)
     /// An installer or app copy whose app is already installed.
     case appInstalled(name: String)
+    /// An exact copy of another file, which stays. Cleanup checks that file is still there,
+    /// unchanged, before removing this one.
+    case duplicateOf(path: String, identity: FileIdentity)
 }
 
 /// Conditions that must hold before a finding can be acted on.
