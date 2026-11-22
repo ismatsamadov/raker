@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-/// Raker's database: cleanup history and the user's rules, in one SQLite file.
+/// Raker's database: cleanup history, the user's rules and the Tray, in one SQLite file.
 public final class AppDatabase: Sendable {
     let writer: any DatabaseWriter
 
@@ -26,6 +26,7 @@ public final class AppDatabase: Sendable {
 
     public var journal: JournalStore { JournalStore(writer: writer) }
     public var userRules: UserRuleStore { UserRuleStore(writer: writer) }
+    public var tray: TrayStore { TrayStore(writer: writer) }
 
     /// Schema changes, in order. Never edit a registered migration; add a new one.
     static var migrator: DatabaseMigrator {
@@ -57,6 +58,15 @@ public final class AppDatabase: Sendable {
                 table.column("kind", .text).notNull()
                 table.column("createdAt", .datetime).notNull()
                 table.uniqueKey(["path", "kind"])
+            }
+        }
+        migrator.registerMigration("v3: tray") { db in
+            try db.create(table: "trayItem") { table in
+                table.primaryKey("findingId", .text)
+                table.column("position", .integer).notNull()
+                table.column("source", .text).notNull()
+                table.column("finding", .jsonText).notNull()
+                table.column("stagedAt", .datetime).notNull()
             }
         }
         return migrator
