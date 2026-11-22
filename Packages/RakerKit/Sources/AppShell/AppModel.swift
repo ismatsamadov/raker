@@ -3,8 +3,10 @@ import Foundation
 import Observation
 import RakerFoundation
 import RakerModel
+import RuleEngine
 import ScanEngine
 import SpaceIndex
+import SystemKit
 
 /// What the user chose to scan.
 public enum ScanScopeChoice: Hashable, Sendable {
@@ -43,6 +45,7 @@ public final class AppModel {
         case downloads
         case largeAndOld
         case duplicates
+        case cleanup
         case history
 
         public var id: Self { self }
@@ -54,6 +57,7 @@ public final class AppModel {
             case .downloads: "Downloads & Installers"
             case .largeAndOld: "Large & Old"
             case .duplicates: "Duplicates"
+            case .cleanup: "Caches & Temporary Files"
             case .history: "Receipts"
             }
         }
@@ -65,6 +69,7 @@ public final class AppModel {
             case .downloads: "arrow.down.circle"
             case .largeAndOld: "clock.badge.exclamationmark"
             case .duplicates: "square.on.square"
+            case .cleanup: "sparkles"
             case .history: "clock.arrow.circlepath"
             }
         }
@@ -94,8 +99,12 @@ public final class AppModel {
     public private(set) var breakdown: [StorageKind: UInt64] = [:]
     public private(set) var volume: VolumeSpace?
     public private(set) var volumeName = "Macintosh HD"
+    public private(set) var cleanupPhase: Phase = .idle
+    public private(set) var cleanupReport: RuleScanReport?
 
     private let engine = ScanEngine()
+    private let apps = LaunchServicesAppDirectory()
+    private let rulePack = Result { () throws(RulePackError) -> RulePack in try RulePackLoader.baseline() }
     private var scanTask: Task<Void, Never>?
     /// Ignores progress from a scan that has since been replaced.
     private var generation = 0
@@ -145,6 +154,29 @@ public final class AppModel {
 
     public func cancelScan() {
         scanTask?.cancel()
+    }
+
+    /// An installed app's name, or the bundle ID when no app is installed for it.
+    public func appName(for bundleID: String) -> String {
+        apps.installedApp(bundleID: bundleID)?.name ?? bundleID
+    }
+
+    /// Finds caches, temporary files and logs with the baseline rule pack.
+    public func scanCleanup() {
+        let pack: RulePack
+        switch rulePack {
+        case .success(let loaded): pack = loaded
+        case .failure(let error):
+            cleanupPhase = .failed(error.description)
+            return
+        }
+        cleanupPhase = .scanning
+        let scanner = RuleScanner(pack: pack, apps: apps)
+        Task {
+            let report = await scanner.scan()
+            cleanupReport = report
+            cleanupPhase = .finished
+        }
     }
 
     public func refreshVolume() {

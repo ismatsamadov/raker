@@ -50,8 +50,8 @@ let package = Package(
         .target(
             name: "AppShell",
             dependencies: [
-                "RakerFoundation", "RakerModel", "FileSystemKit", "SpaceIndex", "ScanEngine",
-                "DesignSystem", "VisualizationKit",
+                "RakerFoundation", "RakerModel", "FileSystemKit", "SystemKit", "RuleEngine", "SpaceIndex",
+                "ScanEngine", "DesignSystem", "VisualizationKit",
             ]
         ),
 

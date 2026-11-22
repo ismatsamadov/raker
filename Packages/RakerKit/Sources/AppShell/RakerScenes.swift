@@ -51,6 +51,8 @@ public struct RakerRootView: View {
             PlaceholderView(section: section, message: "Big files you haven't opened in a long time, grouped by kind.")
         case .duplicates:
             PlaceholderView(section: section, message: "Identical files, verified byte for byte. You choose which copy stays.")
+        case .cleanup:
+            CleanupView(model: model)
         case .history:
             PlaceholderView(section: section, message: "Every cleanup, what moved where, and how free space changed. Restore items while they're in the Trash.")
         }
@@ -65,6 +67,9 @@ struct SidebarView: View {
             row(.overview)
             Section("Explore") {
                 ForEach([AppModel.Section.largest, .downloads, .largeAndOld, .duplicates]) { row($0) }
+            }
+            Section("Clean") {
+                row(.cleanup)
             }
             Section("History") {
                 row(.history)
