@@ -82,6 +82,7 @@ let package = Package(
 
         // Tests
         .testTarget(name: "RakerFoundationTests", dependencies: ["RakerFoundation"]),
+        .testTarget(name: "RakerModelTests", dependencies: ["RakerModel"]),
         .testTarget(name: "SafetyPolicyTests", dependencies: ["SafetyPolicy"]),
         .testTarget(name: "FileSystemKitTests", dependencies: ["FileSystemKit", "RakerFoundation"]),
         .testTarget(name: "RuleEngineTests", dependencies: ["RuleEngine", "RakerModel"]),
