@@ -3,7 +3,8 @@
 # Temporary: the Xcode project replaces this once full Xcode is installed.
 #
 #   CONFIG=release     build optimized (default: debug)
-#   SIGN_IDENTITY=...  sign with a stable identity so privacy grants survive rebuilds
+#   SIGN_IDENTITY=...  sign with this identity (default: the one Scripts/setup-dev-signing.sh
+#                      creates, else ad hoc)
 #   NO_LAUNCH=1        build the bundle without opening it
 set -euo pipefail
 
@@ -64,9 +65,19 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
-# Ad-hoc by default. Privacy grants are tied to the signature, so with ad-hoc signing
-# macOS asks again after every rebuild.
-codesign --force --sign "${SIGN_IDENTITY:--}" "$app"
+# Privacy answers, such as access to Downloads, are tied to the signature. An ad-hoc
+# signature is new on every build, so macOS would ask again after each rebuild.
+signing="${RAKER_SIGNING_DIR:-$HOME/Library/Developer/Raker}"
+if [[ -n "${SIGN_IDENTITY:-}" ]]; then
+    codesign --force --sign "$SIGN_IDENTITY" "$app"
+elif [[ -f "$signing/signing.keychain-db" && -f "$signing/password" ]]; then
+    security unlock-keychain -p "$(cat "$signing/password")" "$signing/signing.keychain-db"
+    codesign --force --sign "Raker Development" --keychain "$signing/signing.keychain-db" "$app"
+else
+    echo "warning: signing ad hoc, so macOS asks for folder access again after every build." >&2
+    echo "         Run Scripts/setup-dev-signing.sh once to keep the answers." >&2
+    codesign --force --sign - "$app"
+fi
 echo "Built $app"
 
 if [[ "${NO_LAUNCH:-0}" != "1" ]]; then
