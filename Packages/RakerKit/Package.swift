@@ -11,6 +11,8 @@ let package = Package(
         .library(name: "FileSystemKit", targets: ["FileSystemKit"]),
         .library(name: "SpaceIndex", targets: ["SpaceIndex"]),
         .library(name: "ScanEngine", targets: ["ScanEngine"]),
+        .library(name: "DesignSystem", targets: ["DesignSystem"]),
+        .library(name: "VisualizationKit", targets: ["VisualizationKit"]),
         .executable(name: "raker", targets: ["RakerCLI"]),
     ],
     dependencies: [
@@ -29,6 +31,10 @@ let package = Package(
         .target(name: "SpaceIndex", dependencies: ["RakerFoundation", "RakerModel", "FileSystemKit"]),
         .target(name: "ScanEngine", dependencies: ["RakerFoundation", "RakerModel", "FileSystemKit", "SpaceIndex"]),
 
+        // Presentation
+        .target(name: "DesignSystem", dependencies: ["RakerFoundation"]),
+        .target(name: "VisualizationKit", dependencies: ["DesignSystem"]),
+
         // Shells
         .executableTarget(
             name: "RakerCLI",
@@ -43,5 +49,6 @@ let package = Package(
         .testTarget(name: "SafetyPolicyTests", dependencies: ["SafetyPolicy"]),
         .testTarget(name: "FileSystemKitTests", dependencies: ["FileSystemKit", "RakerFoundation"]),
         .testTarget(name: "ScanEngineTests", dependencies: ["ScanEngine", "SpaceIndex", "FileSystemKit"]),
+        .testTarget(name: "VisualizationKitTests", dependencies: ["VisualizationKit"]),
     ]
 )
