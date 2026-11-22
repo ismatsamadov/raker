@@ -68,6 +68,25 @@ public struct RakerRootView: View {
                 .sheet(isPresented: $model.isReviewingTray) {
                     TrayReviewView(model: model)
                 }
+                .inspector(isPresented: Binding(
+                    get: { model.isShowingInspector && model.hasInspector },
+                    set: { if model.hasInspector { model.isShowingInspector = $0 } }
+                )) {
+                    InspectorView(model: model)
+                        .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
+                }
+                .toolbar {
+                    if model.hasInspector {
+                        ToolbarItem {
+                            Button {
+                                model.isShowingInspector.toggle()
+                            } label: {
+                                Label("Inspector", systemImage: "sidebar.right")
+                            }
+                            .help(model.isShowingInspector ? "Hide the inspector" : "Show the inspector")
+                        }
+                    }
+                }
         }
         .overlay {
             if model.isCleaning {
@@ -157,3 +176,4 @@ struct PlaceholderView: View {
         .navigationTitle(section.title)
     }
 }
+

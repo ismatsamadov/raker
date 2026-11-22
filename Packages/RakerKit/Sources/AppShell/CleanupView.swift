@@ -31,7 +31,8 @@ struct CleanupView: View {
                 ContentUnavailableView("Couldn't scan", systemImage: "exclamationmark.triangle", description: Text(message))
             case .finished:
                 if let report = model.cleanupReport {
-                    CleanupReportList(report: report, selection: $model.cleanupSelection, appName: model.appName(for:)) {
+                    CleanupReportList(report: report, selection: $model.cleanupSelection,
+                                      inspected: $model.inspectedIDs[.cleanup], appName: model.appName(for:)) {
                         model.addUserRule(.exclude, for: $0)
                     } notice: {
                         if !report.unreadable.isEmpty {
@@ -58,13 +59,15 @@ struct CleanupView: View {
 struct CleanupReportList<Notice: View>: View {
     let report: RuleScanReport
     @Binding var selection: Set<String>
+    /// The row in focus, shown in the inspector.
+    @Binding var inspected: String?
     let appName: (String) -> String
     let onExclude: (String) -> Void
     /// Shown after the groups, such as a note about locations Raker couldn't read.
     @ViewBuilder let notice: Notice
 
     var body: some View {
-        List {
+        List(selection: $inspected) {
             Section {
                 HStack(spacing: Spacing.l) {
                     SummaryTile(title: SafetyLevel.regenerable.title, symbol: SafetyLevel.regenerable.symbol,
@@ -172,7 +175,7 @@ struct CleanupGroupRow: View {
 
     var body: some View {
         DisclosureGroup {
-            ForEach(group.findings) { FindingRow(finding: $0, selection: $selection, onExclude: onExclude) }
+            ForEach(group.findings) { FindingRow(finding: $0, selection: $selection, onExclude: onExclude).tag($0.id) }
         } label: {
             HStack(alignment: .top, spacing: Spacing.s) {
                 groupCheckbox

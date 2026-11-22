@@ -105,7 +105,7 @@ struct DuplicatesView: View {
             .padding(.horizontal, Spacing.l)
             .padding(.vertical, Spacing.m)
             Divider()
-            List {
+            List(selection: $model.inspectedIDs[.duplicates]) {
                 ForEach(model.duplicateSets) { set in
                     DuplicateSetSection(set: set, model: model)
                 }
@@ -170,6 +170,7 @@ struct DuplicateSetSection: View {
                     Button("Lock as Original") { model.addUserRule(.lockOriginal, for: file.path) }
                     Button("Never Suggest This") { model.addUserRule(.exclude, for: file.path) }
                 }
+                .tag(file.path)
             }
         } header: {
             HStack(spacing: Spacing.s) {

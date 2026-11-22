@@ -5,6 +5,7 @@ import FileSystemKit
 import Foundation
 import Observation
 import Persistence
+import QuickLookThumbnailing
 import RakerFoundation
 import RakerModel
 import RuleEngine
@@ -87,7 +88,9 @@ public final class AppModel {
         case failed(String)
     }
 
-    public var selection: Section? = .overview
+    public var selection: Section? = .overview {
+        didSet { loadThumbnail() }
+    }
     public var scope: ScanScopeChoice = .downloads
 
     // View state lives in the model rather than in views, so screens stay declarative
@@ -550,6 +553,117 @@ public final class AppModel {
         // as the copy that stays.
         updateTray { $0.unstage { blocked($0.finding.path) } }
         stageDuplicates(duplicatesSelection)
+    }
+
+    // MARK: Inspector
+
+    public var isShowingInspector = true
+    /// The row in focus in each list, so each section keeps its place.
+    public var inspectedIDs: [Section: String] = [:] {
+        didSet { loadThumbnail() }
+    }
+    /// A Quick Look thumbnail of the inspected file, once it's ready.
+    public private(set) var inspectorThumbnail: InspectorThumbnail?
+
+    public struct InspectorThumbnail {
+        public let path: String
+        public let image: NSImage
+    }
+
+    /// Whether the current section has rows to inspect.
+    public var hasInspector: Bool {
+        switch selection ?? .overview {
+        case .cleanup, .downloads, .largeAndOld, .duplicates: true
+        case .overview, .largest, .history: false
+        }
+    }
+
+    /// The finding in focus in the current section.
+    public var inspectedFinding: Finding? {
+        guard let section = selection, let id = inspectedIDs[section] else { return nil }
+        switch section {
+        case .cleanup: return cleanupReport?.findings.first { $0.id == id }
+        case .downloads: return downloadsFindings.first { $0.id == id }
+        case .largeAndOld: return largeFindings.first { $0.id == id }
+        case .duplicates: return duplicateFinding(at: id)
+        case .overview, .largest, .history: return nil
+        }
+    }
+
+    /// Whether a duplicate is the copy of its set that stays.
+    public func isKeptCopy(_ finding: Finding) -> Bool {
+        guard finding.category == "duplicates",
+              let set = duplicateSets.first(where: { $0.files.contains { $0.path == finding.path } })
+        else { return false }
+        return keeper(of: set).path == finding.path
+    }
+
+    /// What happens if the item is removed: its rule says, or where it goes does.
+    public func ifRemoved(_ finding: Finding) -> String {
+        for evidence in finding.evidence {
+            if case .rule(let id) = evidence, case .success(let pack) = rulePack,
+               let rule = pack.rules.first(where: { $0.id == id }) {
+                return rule.ifRemoved
+            }
+        }
+        if deleteRegenerable && finding.safety == .regenerable {
+            return "Deleted, and rebuilt automatically when it's needed."
+        }
+        return "It goes to the Trash, and you can put it back from Receipts until the Trash is emptied."
+    }
+
+    /// Stages the item if it isn't staged, and unstages it if it is.
+    public func toggleStaged(_ finding: Finding) {
+        guard !finding.isSynced else { return }
+        switch selection ?? .overview {
+        case .cleanup: cleanupSelection.formSymmetricDifference([finding.id])
+        case .downloads: downloadsSelection.formSymmetricDifference([finding.id])
+        case .largeAndOld: largeSelection.formSymmetricDifference([finding.id])
+        case .duplicates: duplicatesSelection.formSymmetricDifference([finding.path])
+        case .overview, .largest, .history: break
+        }
+    }
+
+    /// A finding for one copy in a duplicate set, as staging it would create.
+    private func duplicateFinding(at path: String) -> Finding? {
+        guard let set = duplicateSets.first(where: { $0.files.contains { $0.path == path } }),
+              let file = set.files.first(where: { $0.path == path })
+        else { return nil }
+        let keeper = keeper(of: set)
+        if let staged = set.findings(removing: [path], keeping: keeper).first {
+            return staged
+        }
+        return Finding(
+            id: "duplicates:\(path)",
+            subject: .file(FileRef(path: path, identity: file.identity)),
+            category: "duplicates",
+            safety: .review,
+            size: SizeEstimate(logical: set.size, allocated: set.allocatedPerCopy, reclaimable: file.reclaimable),
+            explanation: "The copy that stays. Its \(set.files.count - 1) other cop\(set.files.count == 2 ? "y is" : "ies are") identical."
+        )
+    }
+
+    /// Asks Quick Look for a thumbnail of the inspected file. Files in the cloud are left
+    /// alone, so nothing is downloaded just to draw a picture.
+    private func loadThumbnail() {
+        guard let finding = inspectedFinding, case .file(let ref) = finding.subject, !finding.isSynced else {
+            inspectorThumbnail = nil
+            return
+        }
+        guard inspectorThumbnail?.path != ref.path else { return }
+        inspectorThumbnail = nil
+        let path = ref.path
+        let request = QLThumbnailGenerator.Request(
+            fileAt: URL(fileURLWithPath: path), size: CGSize(width: 160, height: 160), scale: 2,
+            representationTypes: .thumbnail
+        )
+        QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { representation, _ in
+            guard let image = representation?.nsImage else { return }
+            Task { @MainActor in
+                guard self.inspectedFinding?.path == path else { return }
+                self.inspectorThumbnail = InspectorThumbnail(path: path, image: image)
+            }
+        }
     }
 
     // MARK: Tray

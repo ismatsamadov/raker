@@ -78,6 +78,7 @@ struct PersonalFilesView: View {
                     Divider()
                     FindingsTable(
                         findings: findings, selection: selection,
+                        inspected: $model.inspectedIDs[list == .downloads ? .downloads : .largeAndOld],
                         onPreview: { model.previewURL = $0 },
                         onRule: { kind, path in model.addUserRule(kind, for: path) }
                     )
@@ -150,11 +151,13 @@ struct PersonalFilesView: View {
 struct FindingsTable: View {
     let findings: [Finding]
     @Binding var selection: Set<String>
+    /// The row in focus, shown in the inspector.
+    @Binding var inspected: String?
     let onPreview: (URL) -> Void
     let onRule: (UserRule.Kind, String) -> Void
 
     var body: some View {
-        Table(findings) {
+        Table(findings, selection: $inspected) {
             TableColumn("") { finding in
                 Toggle(isOn: Binding(
                     get: { selection.contains(finding.id) },
