@@ -13,6 +13,7 @@ let package = Package(
         .library(name: "RuleEngine", targets: ["RuleEngine"]),
         .library(name: "SpaceIndex", targets: ["SpaceIndex"]),
         .library(name: "ScanEngine", targets: ["ScanEngine"]),
+        .library(name: "Persistence", targets: ["Persistence"]),
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
         .library(name: "VisualizationKit", targets: ["VisualizationKit"]),
         .library(name: "AppShell", targets: ["AppShell"]),
@@ -21,6 +22,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0"),
+        .package(url: "https://github.com/groue/GRDB.swift", from: "7.0.0"),
     ],
     targets: [
         // Base and domain
@@ -43,6 +45,7 @@ let package = Package(
             name: "ScanEngine",
             dependencies: ["RakerFoundation", "RakerModel", "SafetyPolicy", "FileSystemKit", "SpaceIndex", "RuleEngine"]
         ),
+        .target(name: "Persistence", dependencies: ["RakerModel", .product(name: "GRDB", package: "GRDB.swift")]),
 
         // Presentation
         .target(name: "DesignSystem", dependencies: ["RakerFoundation"]),
@@ -76,6 +79,7 @@ let package = Package(
             name: "ScanEngineTests",
             dependencies: ["ScanEngine", "SpaceIndex", "FileSystemKit", "RuleEngine", "RakerModel"]
         ),
+        .testTarget(name: "PersistenceTests", dependencies: ["Persistence", "RakerModel"]),
         .testTarget(name: "VisualizationKitTests", dependencies: ["VisualizationKit"]),
     ]
 )
