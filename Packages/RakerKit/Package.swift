@@ -33,7 +33,11 @@ let package = Package(
         .target(name: "SystemKit", dependencies: ["RakerModel"]),
 
         // Engines
-        .target(name: "RuleEngine", dependencies: ["RakerFoundation", "RakerModel", "SafetyPolicy"]),
+        .target(
+            name: "RuleEngine",
+            dependencies: ["RakerFoundation", "RakerModel", "SafetyPolicy"],
+            resources: [.copy("Resources/baseline-pack.json")]
+        ),
         .target(name: "SpaceIndex", dependencies: ["RakerFoundation", "RakerModel", "FileSystemKit"]),
         .target(name: "ScanEngine", dependencies: ["RakerFoundation", "RakerModel", "FileSystemKit", "SpaceIndex"]),
 

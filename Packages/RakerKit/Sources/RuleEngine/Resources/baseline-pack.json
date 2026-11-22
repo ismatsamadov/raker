@@ -1,0 +1,240 @@
+{
+  "schema": 1,
+  "version": "2026.11.0",
+  "rules": [
+    {
+      "id": "browser.chrome.cache",
+      "title": "Google Chrome cache",
+      "explanation": "Copies of pages, images and scripts Chrome keeps so sites load faster.",
+      "ifRemoved": "Chrome downloads them again as you browse. Sites may load a little slower at first.",
+      "category": "caches.browsers",
+      "safety": "regenerable",
+      "appBundleIDs": ["com.google.Chrome"],
+      "whileRunning": "requireQuit",
+      "targets": [{ "path": "~/Library/Caches/Google/Chrome", "scope": "contents" }]
+    },
+    {
+      "id": "browser.chrome.codeSignClone",
+      "title": "Chrome update copies",
+      "explanation": "Copies of Chrome that macOS keeps while Chrome updates itself. They're clones of the app, so they share its space on disk.",
+      "ifRemoved": "Chrome makes new copies when it needs them. Removing them frees little or no space.",
+      "category": "temporary.apps",
+      "safety": "review",
+      "appBundleIDs": ["com.google.Chrome"],
+      "whileRunning": "requireQuit",
+      "targets": [{ "path": "$DARWIN_USER_ROOT/X/com.google.Chrome.code_sign_clone", "scope": "contents" }]
+    },
+    {
+      "id": "tools.vscode.cache",
+      "title": "Visual Studio Code cache",
+      "explanation": "Compiled code, data and extension downloads VS Code keeps so it starts faster.",
+      "ifRemoved": "VS Code rebuilds them. The next launch may be a little slower.",
+      "category": "caches.apps",
+      "safety": "regenerable",
+      "appBundleIDs": ["com.microsoft.VSCode"],
+      "whileRunning": "requireQuit",
+      "targets": [
+        { "path": "~/Library/Application Support/Code/Cache", "scope": "contents" },
+        { "path": "~/Library/Application Support/Code/CachedData", "scope": "contents" },
+        { "path": "~/Library/Application Support/Code/CachedExtensionVSIXs", "scope": "contents" },
+        { "path": "~/Library/Application Support/Code/Code Cache", "scope": "contents" }
+      ]
+    },
+    {
+      "id": "dev.xcode.derivedData",
+      "title": "Xcode build data",
+      "explanation": "Intermediate build products and indexes Xcode creates for each project.",
+      "ifRemoved": "Xcode recreates them. The next build of each project takes longer.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "appBundleIDs": ["com.apple.dt.Xcode"],
+      "whileRunning": "requireQuit",
+      "targets": [{ "path": "~/Library/Developer/Xcode/DerivedData", "scope": "contents" }]
+    },
+    {
+      "id": "dev.go.buildCache",
+      "title": "Go build cache",
+      "explanation": "Compiled packages the Go toolchain keeps to speed up builds.",
+      "ifRemoved": "Go rebuilds what it needs. The next build of each project is slower.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "targets": [{ "path": "~/Library/Caches/go-build", "scope": "contents" }]
+    },
+    {
+      "id": "dev.homebrew.downloads",
+      "title": "Homebrew downloads",
+      "explanation": "Package files Homebrew downloaded to install or upgrade software.",
+      "ifRemoved": "Installed software keeps working. Homebrew downloads a file again only if you reinstall that package.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "targets": [{ "path": "~/Library/Caches/Homebrew", "scope": "contents" }]
+    },
+    {
+      "id": "dev.swiftpm.cache",
+      "title": "Swift Package Manager cache",
+      "explanation": "Swift packages downloaded for your projects.",
+      "ifRemoved": "Swift downloads packages again the next time a project needs them.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "targets": [{ "path": "~/Library/Caches/org.swift.swiftpm", "scope": "contents" }]
+    },
+    {
+      "id": "dev.npm.cache",
+      "title": "npm cache",
+      "explanation": "Packages npm downloaded, kept so installs are faster.",
+      "ifRemoved": "npm downloads packages again when a project needs them.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "targets": [{ "path": "~/.npm/_cacache", "scope": "item" }]
+    },
+    {
+      "id": "dev.yarn.cache",
+      "title": "Yarn cache",
+      "explanation": "Packages Yarn downloaded, kept so installs are faster.",
+      "ifRemoved": "Yarn downloads packages again when a project needs them.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "targets": [{ "path": "~/Library/Caches/Yarn", "scope": "contents" }]
+    },
+    {
+      "id": "dev.pip.cache",
+      "title": "pip cache",
+      "explanation": "Python packages pip downloaded or built.",
+      "ifRemoved": "pip downloads packages again when you install them.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "targets": [{ "path": "~/Library/Caches/pip", "scope": "contents" }]
+    },
+    {
+      "id": "dev.cocoapods.cache",
+      "title": "CocoaPods cache",
+      "explanation": "Pods CocoaPods downloaded for your projects.",
+      "ifRemoved": "CocoaPods downloads them again on the next pod install.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "targets": [{ "path": "~/Library/Caches/CocoaPods", "scope": "contents" }]
+    },
+    {
+      "id": "dev.playwright.browsers",
+      "title": "Playwright test browsers",
+      "explanation": "Browsers Playwright downloaded to run automated tests.",
+      "ifRemoved": "Playwright downloads them again on the next test run, which can take several minutes.",
+      "category": "developer.caches",
+      "safety": "review",
+      "targets": [{ "path": "~/Library/Caches/ms-playwright", "scope": "contents" }]
+    },
+    {
+      "id": "ai.huggingface.models",
+      "title": "Hugging Face models",
+      "explanation": "AI models and datasets downloaded by tools that use Hugging Face.",
+      "ifRemoved": "They download again when a tool needs them, which can take a long time for large models.",
+      "category": "developer.ai",
+      "safety": "review",
+      "targets": [{ "path": "~/.cache/huggingface", "scope": "contents" }]
+    },
+    {
+      "id": "ai.ollama.models",
+      "title": "Ollama models",
+      "explanation": "AI models downloaded with Ollama.",
+      "ifRemoved": "Ollama downloads a model again the next time you run it.",
+      "category": "developer.ai",
+      "safety": "review",
+      "targets": [{ "path": "~/.ollama/models", "scope": "contents" }]
+    },
+    {
+      "id": "tools.cache.hidden",
+      "title": "Command-line tool caches",
+      "explanation": "Caches that command-line tools keep in the hidden .cache folder.",
+      "ifRemoved": "Each tool rebuilds its cache when it needs it.",
+      "category": "developer.caches",
+      "safety": "regenerable",
+      "identifiesOwners": true,
+      "targets": [{ "path": "~/.cache/*", "scope": "item" }]
+    },
+    {
+      "id": "logs.user.crashReports",
+      "title": "Old crash reports",
+      "explanation": "Reports macOS wrote when apps crashed or stopped responding.",
+      "ifRemoved": "Nothing changes. Reports from the last 30 days are kept for troubleshooting.",
+      "category": "logs",
+      "safety": "regenerable",
+      "targets": [{ "path": "~/Library/Logs/DiagnosticReports", "scope": "contents", "olderThanDays": 30 }]
+    },
+    {
+      "id": "dev.npm.logs",
+      "title": "npm logs",
+      "explanation": "Logs npm writes for each command.",
+      "ifRemoved": "Nothing changes; npm writes new logs as needed.",
+      "category": "logs",
+      "safety": "regenerable",
+      "targets": [{ "path": "~/.npm/_logs", "scope": "contents" }]
+    },
+    {
+      "id": "logs.user",
+      "title": "App logs",
+      "explanation": "Activity logs apps write for troubleshooting.",
+      "ifRemoved": "Apps start new logs. Only logs untouched for a week are listed.",
+      "category": "logs",
+      "safety": "regenerable",
+      "identifiesOwners": true,
+      "targets": [{ "path": "~/Library/Logs/*", "scope": "item", "olderThanDays": 7, "exclude": ["DiagnosticReports"] }]
+    },
+    {
+      "id": "temporary.user",
+      "title": "Temporary files",
+      "explanation": "Files apps made for short-term use and didn't clean up.",
+      "ifRemoved": "Nothing that's still in use is listed: only items untouched for 3 days.",
+      "category": "temporary",
+      "safety": "regenerable",
+      "identifiesOwners": true,
+      "targets": [
+        { "path": "$DARWIN_USER_TEMP_DIR", "scope": "contents", "olderThanDays": 3 },
+        { "path": "/private/tmp", "scope": "contents", "olderThanDays": 3, "onlyOwnedByUser": true }
+      ]
+    },
+    {
+      "id": "macos.caches",
+      "title": "macOS caches",
+      "explanation": "Caches used by macOS and Apple apps.",
+      "ifRemoved": "macOS rebuilds them, but some are in use right now. They're usually small.",
+      "category": "caches.system",
+      "safety": "review",
+      "identifiesOwners": true,
+      "targets": [{ "path": "~/Library/Caches/com.apple.*", "scope": "item" }]
+    },
+    {
+      "id": "apps.caches",
+      "title": "App caches",
+      "explanation": "Data apps keep to work faster, such as downloaded images, previews and web content.",
+      "ifRemoved": "Apps rebuild their caches as you use them.",
+      "category": "caches.apps",
+      "safety": "regenerable",
+      "identifiesOwners": true,
+      "whileRunning": "requireQuit",
+      "targets": [{ "path": "~/Library/Caches/*", "scope": "item" }]
+    }
+  ],
+  "locations": [
+    { "path": "~/.ssh", "title": "SSH keys", "explanation": "Keys that sign you in to servers and services such as GitHub.", "removable": false },
+    { "path": "~/.gnupg", "title": "Encryption keys", "explanation": "GnuPG keys for signing and encrypting.", "removable": false },
+    { "path": "~/.config", "title": "Command-line tool settings", "explanation": "Settings for command-line tools you use.", "removable": false },
+    { "path": "~/.local", "title": "Command-line tools and their data", "explanation": "Programs installed just for your account, and the data they keep.", "removable": false },
+    { "path": "~/.npm", "title": "npm data", "explanation": "npm's download cache and logs. Raker lists the parts that are safe to remove.", "removable": false },
+    { "path": "~/.cache", "title": "Command-line tool caches", "explanation": "Caches kept by command-line tools. Raker lists them one tool at a time.", "removable": false },
+    { "path": "~/.vscode", "title": "Visual Studio Code extensions", "explanation": "Extensions you installed in VS Code. Remove them from inside VS Code.", "removable": false },
+    { "path": "~/.docker", "title": "Docker settings", "explanation": "Docker's configuration and sign-in data. Images and containers are stored elsewhere.", "removable": false },
+    { "path": "~/.zsh_sessions", "title": "Terminal session history", "explanation": "Command history Terminal saves for each window.", "removable": false },
+    { "path": "~/.Trash", "title": "Trash", "explanation": "Items you moved to the Trash.", "removable": false },
+    { "path": "~/.gradle", "title": "Gradle data", "explanation": "Gradle's caches and downloaded dependencies.", "removable": false },
+    { "path": "~/.m2", "title": "Maven repository", "explanation": "Java libraries Maven downloaded.", "removable": false },
+    { "path": "~/.cargo", "title": "Rust packages and tools", "explanation": "Rust's package registry cache and tools you installed with cargo.", "removable": false },
+    { "path": "~/.rustup", "title": "Rust toolchains", "explanation": "Rust compilers installed with rustup.", "removable": false },
+    { "path": "~/.ollama", "title": "Ollama", "explanation": "Ollama's AI models and settings.", "removable": false },
+    { "path": "~/Library/Caches", "title": "App caches", "explanation": "Data apps keep to work faster. Apps rebuild their caches as needed.", "removable": false },
+    { "path": "~/Library/Application Support", "title": "App data", "explanation": "Documents, settings and databases apps keep for you. This isn't a cache: an app's folder should only go when you uninstall the app.", "removable": false },
+    { "path": "~/Library/Logs", "title": "App logs", "explanation": "Logs and crash reports from apps.", "removable": false },
+    { "path": "$DARWIN_USER_ROOT", "title": "macOS per-user working area", "explanation": "macOS keeps temporary files (T), caches (C) and app copies (X) here, and cleans much of it automatically.", "removable": false },
+    { "path": "/private/tmp", "title": "Shared temporary folder", "explanation": "Temporary files from apps and tools. macOS empties it when the Mac restarts.", "removable": false }
+  ],
+  "disabledRules": []
+}
