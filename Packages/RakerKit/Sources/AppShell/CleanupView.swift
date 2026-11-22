@@ -50,22 +50,8 @@ struct CleanupView: View {
                 .disabled(model.cleanupPhase == .scanning || model.isCleaning)
             }
         }
-        .overlay {
-            if model.isCleaning {
-                CleaningProgressView(progress: model.cleanupProgress)
-            }
-        }
         .sheet(isPresented: $model.isConfirmingCleanup) {
             CleanupConfirmation(model: model)
-        }
-        .sheet(isPresented: $model.isShowingReceipt) {
-            if let receipt = model.lastReceipt {
-                ReceiptView(receipt: receipt, appName: model.appName(for:)) {
-                    model.restore(receipt)
-                } onDone: {
-                    model.isShowingReceipt = false
-                }
-            }
         }
     }
 }

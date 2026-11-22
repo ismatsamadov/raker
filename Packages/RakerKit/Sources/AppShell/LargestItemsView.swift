@@ -37,7 +37,6 @@ struct LargestItemsView: View {
             }
         }
         .navigationTitle("Largest Items")
-        .quickLookPreview($model.previewURL)
     }
 
     private func content(tree: SizeTree, folder: SizeTree.Index) -> some View {

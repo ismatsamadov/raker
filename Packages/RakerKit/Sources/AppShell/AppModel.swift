@@ -114,9 +114,28 @@ public final class AppModel {
     public private(set) var lastReceipt: CleanupReceipt?
     public private(set) var receipts: [CleanupReceipt] = []
 
+    /// The two lists of personal files: everything in Downloads, and large or old files.
+    public enum PersonalList: Hashable, Sendable {
+        case downloads
+        case largeAndOld
+    }
+
+    public private(set) var downloadsPhase: Phase = .idle
+    public private(set) var downloadsFindings: [Finding] = []
+    public var downloadsSelection: Set<String> = []
+    public private(set) var largePhase: Phase = .idle
+    public private(set) var largeFindings: [Finding] = []
+    public var largeSelection: Set<String> = []
+    public var largeCriteria = PersonalFileFinder.LargeFileCriteria() {
+        didSet { refreshLargeFiles() }
+    }
+    /// The list whose selection is waiting for confirmation before going to the Trash.
+    public var confirmingTrash: PersonalList?
+
     private let engine = ScanEngine()
     private let apps = LaunchServicesAppDirectory()
     private let journal = try? JournalStore.open()
+    private let metadata = SystemFileMetadata()
     private let rulePack = Result { () throws(RulePackError) -> RulePack in try RulePackLoader.baseline() }
     private var scanTask: Task<Void, Never>?
     /// Ignores progress from a scan that has since been replaced.
@@ -158,6 +177,7 @@ public final class AppModel {
                 self.breakdown = breakdown
                 self.browsedIndex = tree.root
                 self.phase = .finished
+                refreshLargeFiles()
             } catch {
                 guard generation == current else { return }
                 phase = .failed(Self.describe(error))
@@ -251,6 +271,97 @@ public final class AppModel {
 
     public func refreshHistory() {
         receipts = (try? journal?.receipts()) ?? []
+    }
+
+    // MARK: Personal files
+
+    /// Scans Downloads and lists what's there. Asking is what triggers macOS's prompt for
+    /// access to Downloads, at the moment the user wants it.
+    public func scanDownloads() {
+        downloadsPhase = .scanning
+        let path = ScanScopeChoice.downloads.path
+        let finder = makeFinder()
+        Task {
+            do throws(ScanError) {
+                let tree = try await engine.scan(ScanScope(path: path)).tree
+                let findings = await Task.detached(priority: .userInitiated) { finder.downloads(in: tree) }.value
+                downloadsFindings = findings
+                downloadsSelection = []
+                downloadsPhase = .finished
+            } catch {
+                downloadsPhase = .failed(Self.describe(error))
+            }
+        }
+    }
+
+    /// Lists large or long-unopened files from the last scan of the current scope.
+    public func refreshLargeFiles() {
+        guard let tree = report?.tree else {
+            largePhase = .idle
+            largeFindings = []
+            return
+        }
+        largePhase = .scanning
+        let finder = makeFinder()
+        let criteria = largeCriteria
+        Task {
+            let findings = await Task.detached(priority: .userInitiated) {
+                finder.largeFiles(in: tree, criteria: criteria)
+            }.value
+            largeFindings = findings
+            largeSelection.formIntersection(findings.map(\.id))
+            largePhase = .finished
+        }
+    }
+
+    public func findings(for list: PersonalList) -> [Finding] {
+        list == .downloads ? downloadsFindings : largeFindings
+    }
+
+    /// Selects installers whose app is already installed: the safest things to remove from Downloads.
+    public func selectInstallersOfInstalledApps() {
+        downloadsSelection = Set(downloadsFindings.filter { finding in
+            finding.evidence.contains { if case .appInstalled = $0 { true } else { false } }
+                && !finding.constraints.contains { if case .synced = $0 { true } else { false } }
+        }.map(\.id))
+    }
+
+    /// Moves the selected files of a list to the Trash, then shows the receipt.
+    public func trashSelected(_ list: PersonalList) {
+        let selection = list == .downloads ? downloadsSelection : largeSelection
+        let findings = findings(for: list).filter { selection.contains($0.id) }
+        guard !findings.isEmpty, !isCleaning else { return }
+        confirmingTrash = nil
+        isCleaning = true
+        let plan = PlanBuilder.plan(
+            for: findings, deleteRegenerable: false,
+            spaceBefore: try? VolumeInfo.space(containing: NSHomeDirectory())
+        )
+        let executor = CleanupExecutor(apps: apps, journal: journal)
+        Task {
+            let receipt = await executor.execute(plan) { progress in
+                Task { @MainActor in self.cleanupProgress = progress }
+            }
+            isCleaning = false
+            cleanupProgress = nil
+            lastReceipt = receipt
+            isShowingReceipt = true
+            let moved = Set(receipt.items.filter { if case .movedToTrash = $0.outcome { true } else { false } }.map(\.findingID))
+            switch list {
+            case .downloads:
+                downloadsFindings.removeAll { moved.contains($0.id) }
+                downloadsSelection.subtract(moved)
+            case .largeAndOld:
+                largeFindings.removeAll { moved.contains($0.id) }
+                largeSelection.subtract(moved)
+            }
+            refreshVolume()
+            refreshHistory()
+        }
+    }
+
+    private func makeFinder() -> PersonalFileFinder {
+        PersonalFileFinder(metadata: metadata, installedAppNames: ApplicationsFolder.installedAppNames())
     }
 
     public func refreshVolume() {

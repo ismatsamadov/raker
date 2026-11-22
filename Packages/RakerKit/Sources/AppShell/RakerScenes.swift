@@ -1,3 +1,4 @@
+import QuickLook
 import SwiftUI
 
 /// The app's scenes. The Xcode app target and the development runner both use this.
@@ -36,6 +37,21 @@ public struct RakerRootView: View {
             detail(for: model.selection ?? .overview)
         }
         .frame(minWidth: 960, minHeight: 640)
+        .overlay {
+            if model.isCleaning {
+                CleaningProgressView(progress: model.cleanupProgress)
+            }
+        }
+        .sheet(isPresented: $model.isShowingReceipt) {
+            if let receipt = model.lastReceipt {
+                ReceiptView(receipt: receipt, appName: model.appName(for:)) {
+                    model.restore(receipt)
+                } onDone: {
+                    model.isShowingReceipt = false
+                }
+            }
+        }
+        .quickLookPreview($model.previewURL)
     }
 
     @ViewBuilder
@@ -46,9 +62,9 @@ public struct RakerRootView: View {
         case .largest:
             LargestItemsView(model: model)
         case .downloads:
-            PlaceholderView(section: section, message: "Installers, archives and disk images you've downloaded, with where they came from and whether the app is already installed.")
+            PersonalFilesView(model: model, list: .downloads)
         case .largeAndOld:
-            PlaceholderView(section: section, message: "Big files you haven't opened in a long time, grouped by kind.")
+            PersonalFilesView(model: model, list: .largeAndOld)
         case .duplicates:
             PlaceholderView(section: section, message: "Identical files, verified byte for byte. You choose which copy stays.")
         case .cleanup:
