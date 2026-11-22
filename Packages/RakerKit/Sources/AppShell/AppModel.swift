@@ -157,6 +157,12 @@ public final class AppModel {
 
     /// What Raker knows about each protected area.
     public private(set) var access: AccessMap
+    public var settingsTab: SettingsTab = .access
+
+    public enum SettingsTab: Hashable {
+        case access
+        case exclusions
+    }
 
     private static let accessKey = "access.remembered"
     @ObservationIgnored private var activationObserver: (any NSObjectProtocol)?

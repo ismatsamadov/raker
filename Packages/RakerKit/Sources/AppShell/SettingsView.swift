@@ -10,11 +10,15 @@ struct SettingsView: View {
     @Bindable var model: AppModel
 
     var body: some View {
-        TabView {
+        TabView(selection: $model.settingsTab) {
+            AccessSettings(model: model)
+                .tabItem { Label("Access", systemImage: "lock.shield") }
+                .tag(AppModel.SettingsTab.access)
             ExclusionsSettings(model: model)
                 .tabItem { Label("Exclusions", systemImage: "hand.raised") }
+                .tag(AppModel.SettingsTab.exclusions)
         }
-        .frame(width: 600, height: 440)
+        .frame(width: 640, height: 600)
     }
 }
 
