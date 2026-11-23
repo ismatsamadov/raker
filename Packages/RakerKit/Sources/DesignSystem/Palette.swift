@@ -25,7 +25,9 @@ extension Palette {
     public static let forest = Color(red: 0.095, green: 0.175, blue: 0.145)
     public static let lichen = Color(red: 0.87, green: 0.96, blue: 0.63)
 
-    public static let accent = adaptive(light: 0x365F48, dark: 0xA9D2AD)
+    /// The tint behind white labels on prominent buttons and checkboxes, so in dark mode it
+    /// stays deep enough for them (4.7:1) while still standing out on the canvas (3.7:1).
+    public static let accent = adaptive(light: 0x365F48, dark: 0x44805B)
     public static let canvas = adaptive(light: 0xF3F4EE, dark: 0x171C19)
     public static let paper = adaptive(light: 0xFDFDF9, dark: 0x232A25)
     public static let rule = adaptive(light: 0xC9CEC3, dark: 0x535E54)
