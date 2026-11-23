@@ -246,10 +246,11 @@ struct ItemCommands: Commands {
             }
             .disabled(finding == nil)
             Divider()
-            Button(model.isShowingInspector ? "Hide Inspector" : "Show Inspector") {
+            Button(model.isShowingInspector && model.hasInspector ? "Hide Inspector" : "Show Inspector") {
                 model.isShowingInspector.toggle()
             }
             .keyboardShortcut("i", modifiers: [.command, .option])
+            .disabled(!model.hasInspector)
         }
     }
 }
