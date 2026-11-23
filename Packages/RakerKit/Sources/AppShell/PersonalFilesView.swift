@@ -84,11 +84,9 @@ struct PersonalFilesView: View {
                              ? "Choose which downloads to stage. An archive may be your only copy of its contents."
                              : "From \(model.scope.title). App bundles, Library and hidden folders are excluded.",
                          tint: section.tint)
-            if list == .downloads || !selection.wrappedValue.isEmpty {
-                ViewThatFits(in: .horizontal) {
-                    HStack { selectionActions }
-                    VStack(alignment: .leading) { selectionActions }
-                }
+            ViewThatFits(in: .horizontal) {
+                HStack { selectionActions }
+                VStack(alignment: .leading) { selectionActions }
             }
         }
         .padding(Spacing.l)
@@ -100,9 +98,9 @@ struct PersonalFilesView: View {
         if list == .downloads {
             Button("Select Installers of Installed Apps") { model.selectInstallersOfInstalledApps() }
         }
-        if !selection.wrappedValue.isEmpty {
-            Button("Remove from Tray") { selection.wrappedValue = [] }
-        }
+        // Always there, so staging the first item doesn't push the list down.
+        Button("Remove from Tray") { selection.wrappedValue = [] }
+            .disabled(selection.wrappedValue.isEmpty)
     }
 
     @ToolbarContentBuilder
