@@ -207,11 +207,22 @@ struct SidebarView: View {
         Label {
             Text(section.title)
         } icon: {
-            Image(systemName: section.symbol)
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(section.tint)
+            SidebarIcon(section: section)
         }
         .tag(section)
+    }
+}
+
+/// A section's symbol in its color, except on a selected row highlighted with the accent,
+/// where it takes the selection's high-contrast foreground like the title beside it.
+private struct SidebarIcon: View {
+    let section: AppModel.Section
+    @Environment(\.backgroundProminence) private var prominence
+
+    var body: some View {
+        Image(systemName: section.symbol)
+            .symbolRenderingMode(.hierarchical)
+            .foregroundStyle(prominence == .increased ? AnyShapeStyle(.primary) : AnyShapeStyle(section.tint))
     }
 }
 
