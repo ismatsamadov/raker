@@ -85,8 +85,11 @@ struct PanelHeading: View {
         HStack(alignment: .top, spacing: Spacing.m) {
             SymbolTile(symbol, tint: tint, size: 40)
             VStack(alignment: .leading, spacing: Spacing.xs) {
+                // Titles often carry sizes and counts; keep their digits from shifting as they change.
                 Text(title)
                     .font(.title2.weight(.semibold))
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
                     .accessibilityAddTraits(.isHeader)
                 Text(detail)
                     .foregroundStyle(.secondary)
