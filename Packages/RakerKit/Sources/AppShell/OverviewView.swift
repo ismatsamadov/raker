@@ -170,6 +170,11 @@ struct OverviewView: View {
                 VStack(spacing: Spacing.xxs) {
                     SizeText(model.report.map { $0.tree.allocatedSize(of: $0.tree.root) } ?? 0)
                         .font(.system(size: 31, weight: .semibold, design: .rounded))
+                        // The ring's hole is 146 points across; a total such as 123.45 GB
+                        // would reach the arcs at full size.
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .frame(maxWidth: 136)
                     Text("in \(model.scope.title)")
                         .lineLimit(1)
                         .truncationMode(.middle)
