@@ -150,7 +150,11 @@ struct LargestItemsView: View {
             .padding(.horizontal, Spacing.xl)
             .padding(.top, Spacing.l)
             caption(tree: tree, total: total)
+                .lineLimit(2)
                 .multilineTextAlignment(.center)
+                // Room for two lines whatever is hovered, so the lens above keeps its size
+                // under the pointer.
+                .frame(height: 34)
                 .padding(.horizontal, Spacing.m)
                 .padding(.vertical, Spacing.s)
                 .surfaceCard()
