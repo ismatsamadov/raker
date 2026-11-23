@@ -1,10 +1,22 @@
+<img src="Design/Raker.png" alt="Raker’s three-tine rake icon" width="64" height="64">
+
 # Raker
 
 Clear the clutter. Keep what matters.
 
 Raker is a native macOS app that shows what uses your storage, explains every item, and removes only what you approve, with a receipt you can undo. It's open source and every feature is free.
 
+## Screenshots
+
 ![Raker’s storage overview after scanning a sample folder](Design/Overview.png)
+
+| Choose a folder to scan | Find the largest items |
+| --- | --- |
+| [![Scan choices for Downloads, Home Folder, and a selected folder](Design/Screenshots/choose-folder.png)](Design/Screenshots/choose-folder.png) | [![Studio Library folders ranked by size in Largest Items](Design/Screenshots/largest-items.png)](Design/Screenshots/largest-items.png) |
+| **Explore folders in Space Lens** | **Choose which duplicate to keep** |
+| [![Space Lens showing nested folders as colored rings](Design/Screenshots/space-lens.png)](Design/Screenshots/space-lens.png) | [![Two duplicate sets with a star beside each copy that stays](Design/Screenshots/duplicates.png)](Design/Screenshots/duplicates.png) |
+| **Review the Tray before cleaning** | **Put items back from a receipt** |
+| [![Tray review listing two selected files and their Trash destination](Design/Screenshots/tray-review.png)](Design/Screenshots/tray-review.png) | [![Example cleanup receipt with two items that can be put back from the Trash](Design/Screenshots/receipts.png)](Design/Screenshots/receipts.png) |
 
 > **Status:** early development (milestone M0, foundations). The scanning engine, the safety policy, the rule engine with a baseline pack (app, browser and developer caches, including Xcode, simulator and package-manager data, iPhone updates, temporary files and logs, each explained), the cleanup engine (items that rebuild automatically are deleted, everything else goes to the Trash, with receipts, history and restore), Downloads & Installers and Large & Old (with where files came from and when they were last opened), exact duplicates (one copy of each always stays), exclusions and locked originals (shared by the app and the CLI), the Tray (what you choose in any section, kept across relaunches, reviewed and cleaned in one go), an inspector for the item in focus with keyboard review (Space previews, Delete stages, E excludes, L locks), "what is this?" for anything in Largest Items, which can also go in the Tray, an app uninstaller that finds each app's files across the Library and says how sure it is of each, leftovers of removed apps (only for what macOS knew as an app), Space Lens (a sunburst of any scanned folder that zooms with a morph, colored by folder or by age), a first-run welcome, an Access Center that shows which protected areas Raker can read and how to allow the rest, a command-line harness and the first SwiftUI screens work.
 
