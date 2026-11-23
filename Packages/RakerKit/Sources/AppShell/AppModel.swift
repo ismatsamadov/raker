@@ -256,6 +256,8 @@ public final class AppModel {
     private var scanTask: Task<Void, Never>?
     /// Ignores progress from a scan that has since been replaced.
     private var generation = 0
+    /// What `report` scanned, to go back to when a later scan is stopped.
+    private var reportScope: ScanScopeChoice?
 
     /// - Parameter database: Where history, rules and the Tray are kept. Previews and tests
     ///   pass one in memory.
@@ -288,7 +290,8 @@ public final class AppModel {
         scanTask?.cancel()
         generation += 1
         let current = generation
-        let scope = ScanScope(path: self.scope.path)
+        let choice = self.scope
+        let scope = ScanScope(path: choice.path)
         phase = .scanning
         progress = nil
 
@@ -300,10 +303,15 @@ public final class AppModel {
                         self.progress = progress
                     }
                 }
-                let tree = report.tree
-                if report.completed {
-                    learnAccess { $0.learn(fromScanOf: tree.rootPath, skipped: report.skipped, homeDirectory: NSHomeDirectory()) }
+                // A stopped scan read only part of the folder. Go back to the last complete one.
+                guard report.completed else {
+                    guard generation == current else { return }
+                    if let reportScope { self.scope = reportScope }
+                    phase = self.report == nil ? .idle : .finished
+                    return
                 }
+                let tree = report.tree
+                learnAccess { $0.learn(fromScanOf: tree.rootPath, skipped: report.skipped, homeDirectory: NSHomeDirectory()) }
                 let breakdown = await Task.detached(priority: .userInitiated) {
                     StorageKindClassifier.breakdown(of: tree, under: tree.root)
                 }.value
@@ -313,6 +321,7 @@ public final class AppModel {
                 self.lensHovered = nil
                 self.lensCache = nil
                 self.report = report
+                self.reportScope = choice
                 self.breakdown = breakdown
                 self.browsedIndex = tree.root
                 self.phase = .finished
