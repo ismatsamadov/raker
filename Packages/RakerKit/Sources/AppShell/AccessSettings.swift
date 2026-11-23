@@ -118,7 +118,7 @@ struct GuideStep<Content: View>: View {
                 .monospacedDigit()
                 .foregroundStyle(.white)
                 .frame(width: 22, height: 22)
-                .background(Circle().fill(Color.accentColor))
+                .background(Circle().fill(.tint))
                 .accessibilityHidden(true)
             content
         }

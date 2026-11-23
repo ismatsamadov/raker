@@ -96,7 +96,7 @@ public struct ScanningRingView<Center: View>: View {
                 Circle()
                     .trim(from: 0, to: 0.3)
                     .stroke(
-                        AngularGradient(colors: [Color.accentColor.opacity(0), Color.accentColor], center: .center,
+                        AngularGradient(colors: [Palette.accent.opacity(0), Palette.accent], center: .center,
                                         startAngle: .degrees(0), endAngle: .degrees(108)),
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                     )

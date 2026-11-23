@@ -64,7 +64,8 @@ public struct SunburstView<ID: Hashable & Sendable, Center: View>: View {
         let shape = AnnularSector(start: segment.start, end: segment.end, inner: inner, outer: inner + ringWidth)
         return shape
             .fill(color(segment).opacity(highlighted.isEmpty || highlighted.contains(segment.key) ? 1 : 0.4))
-            .overlay(shape.stroke(Color(nsColor: .windowBackgroundColor), lineWidth: 1))
+            // Gaps between segments in the color of the canvas the lens sits on.
+            .overlay(shape.stroke(Palette.canvas, lineWidth: 1))
             .contentShape(shape)
             .onHover { inside in
                 if inside {
