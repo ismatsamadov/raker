@@ -68,4 +68,27 @@ struct ScanStateTests {
         #expect(model.phase == .idle)
         #expect(model.report == nil)
     }
+
+    @Test("A section keeps its inspector while it looks for results again")
+    func inspectorDuringRefresh() async throws {
+        let folder = try makeFolder("a.bin", "b.bin")
+        defer { try? FileManager.default.removeItem(atPath: folder) }
+        let model = AppModel(database: try AppDatabase.inMemory())
+        model.scope = .folder(URL(fileURLWithPath: folder))
+        model.selection = .duplicates
+        model.startScan()
+        try await waitUntil { model.phase == .finished }
+        #expect(!model.hasInspector)
+
+        model.findDuplicates()
+        try await waitUntil { model.duplicatesPhase == .finished }
+        #expect(model.hasInspector)
+
+        model.findDuplicates()
+        #expect(model.duplicatesPhase == .scanning)
+        #expect(model.hasInspector)
+
+        model.cancelDuplicates()
+        #expect(!model.hasInspector)
+    }
 }

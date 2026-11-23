@@ -839,16 +839,22 @@ public final class AppModel {
         public let image: NSImage
     }
 
-    /// Whether the current section has rows to inspect.
+    /// Whether the current section has rows to inspect. A section refreshing its results
+    /// keeps the inspector, so the window doesn't close and reopen the column.
     public var hasInspector: Bool {
         switch selection ?? .overview {
         case .largest: report != nil
-        case .cleanup: cleanupPhase == .finished && cleanupReport?.groups.isEmpty == false
-        case .downloads: downloadsPhase == .finished && !downloadsFindings.isEmpty
-        case .largeAndOld: largePhase == .finished && !largeFindings.isEmpty
-        case .duplicates: duplicatesPhase == .finished && !duplicateSets.isEmpty
+        case .cleanup: hasResults(cleanupPhase) && cleanupReport?.groups.isEmpty == false
+        case .downloads: hasResults(downloadsPhase) && !downloadsFindings.isEmpty
+        case .largeAndOld: hasResults(largePhase) && !largeFindings.isEmpty
+        case .duplicates: hasResults(duplicatesPhase) && !duplicateSets.isEmpty
         case .overview, .applications, .leftovers, .history: false
         }
+    }
+
+    /// Results are on hand once a section finishes, and stay while it looks again.
+    private func hasResults(_ phase: Phase) -> Bool {
+        phase == .finished || phase == .scanning
     }
 
     /// The file or folder in focus in Largest Items: the selected row, or the folder shown.
