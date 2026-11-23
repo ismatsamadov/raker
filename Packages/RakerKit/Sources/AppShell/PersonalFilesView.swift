@@ -132,7 +132,8 @@ struct PersonalFilesView: View {
             } label: {
                 Label("Scan Again", systemImage: "arrow.clockwise")
             }
-            .disabled(phase == .scanning || model.isCleaning)
+            // Large & Old lists files from the folder scan, which may still be running.
+            .disabled(phase == .scanning || model.isCleaning || (list == .largeAndOld && model.isScanning))
         }
     }
 }
