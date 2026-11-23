@@ -83,7 +83,10 @@ let package = Package(
             ]
         ),
         // Runs the SwiftUI shell without an Xcode project; the Xcode app target replaces it later.
-        .executableTarget(name: "RakerDevApp", dependencies: ["AppShell"]),
+        .executableTarget(
+            name: "RakerDevApp", dependencies: ["AppShell"],
+            resources: [.copy("Resources/Raker.icns")]
+        ),
 
         // Tests
         .testTarget(name: "RakerFoundationTests", dependencies: ["RakerFoundation"]),

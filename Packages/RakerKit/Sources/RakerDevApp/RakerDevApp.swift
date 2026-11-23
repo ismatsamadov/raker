@@ -17,9 +17,13 @@ struct RakerDevApp: App {
 @MainActor
 final class DevAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // A bare executable starts without a Dock icon or menu bar.
-        if Bundle.main.bundleIdentifier == nil {
+        // SwiftPM and debugger launches have no app bundle to supply a Dock icon.
+        if Bundle.main.bundleURL.pathExtension != "app" {
             NSApp.setActivationPolicy(.regular)
+            if let url = Bundle.module.url(forResource: "Raker", withExtension: "icns"),
+               let icon = NSImage(contentsOf: url) {
+                NSApp.applicationIconImage = icon
+            }
         }
         NSApp.activate()
     }

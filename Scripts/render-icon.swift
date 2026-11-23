@@ -1,6 +1,6 @@
 // From the repository root:
 // swiftc Packages/RakerKit/Sources/DesignSystem/RakerIcon.swift Scripts/render-icon.swift -o /tmp/raker-icon
-// /tmp/raker-icon /tmp/Raker.iconset && iconutil -c icns /tmp/Raker.iconset -o Design/Raker.icns
+// /tmp/raker-icon /tmp/Raker.iconset && iconutil -c icns /tmp/Raker.iconset -o Packages/RakerKit/Sources/RakerDevApp/Resources/Raker.icns
 import AppKit
 import SwiftUI
 

@@ -19,9 +19,11 @@ bin_dir="$(swift build -c "$config" --show-bin-path)"
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin_dir/RakerDevApp" "$app/Contents/MacOS/Raker"
-cp "$root/Design/Raker.icns" "$app/Contents/Resources/Raker.icns"
+cp "Sources/RakerDevApp/Resources/Raker.icns" "$app/Contents/Resources/Raker.icns"
 # Resource bundles, such as the baseline rule pack.
 for bundle in "$bin_dir"/*.bundle; do
+    # The runner's icon already has its required location in the main bundle.
+    [[ "$(basename "$bundle")" == "RakerKit_RakerDevApp.bundle" ]] && continue
     [[ -e "$bundle" ]] && cp -R "$bundle" "$app/Contents/Resources/"
 done
 
