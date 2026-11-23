@@ -268,7 +268,7 @@ struct OverviewView: View {
     private var cards: some View {
         if model.phase == .finished, let report = model.report {
             let tree = report.tree
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 176), spacing: Spacing.m)], spacing: Spacing.m) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 176), spacing: Spacing.m, alignment: .top)], spacing: Spacing.m) {
                 if let folder = tree.largestChildren(of: tree.root, limit: 1).first {
                     InsightCard(title: "Largest item", symbol: "arrow.up.right.circle", tint: Palette.installers,
                                 value: ByteCount(tree.allocatedSize(of: folder)).formatted,
@@ -324,10 +324,11 @@ struct InsightCard: View {
             Text(detail)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .lineLimit(2)
+                // Two lines even for a short detail, so cards in a row match in height.
+                .lineLimit(2, reservesSpace: true)
                 .truncationMode(.middle)
         }
-        .frame(maxWidth: .infinity, minHeight: 78, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .padding(Spacing.l)
         .surfaceCard()
     }
