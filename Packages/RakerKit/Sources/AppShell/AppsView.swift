@@ -58,11 +58,13 @@ struct AppsView: View {
     }
 
     private var appList: some View {
-        VStack(spacing: 0) {
+        // Filtered and sorted on every read, so worked out once per update.
+        let apps = model.visibleApps
+        return VStack(spacing: 0) {
             SearchField(prompt: "Search apps", text: $model.appSearch)
                 .padding(Spacing.m)
             List(selection: $model.selectedAppPath) {
-                ForEach(model.visibleApps) { app in
+                ForEach(apps) { app in
                     AppRow(app: app, size: model.appSizes[app.path], lastOpened: model.appLastOpened[app.path],
                            isRunning: model.isRunning(app))
                         .tag(app.path)
@@ -70,7 +72,7 @@ struct AppsView: View {
             }
             .listStyle(.inset)
             .overlay {
-                if model.visibleApps.isEmpty {
+                if apps.isEmpty {
                     ContentUnavailableView.search(text: model.appSearch)
                 }
             }
