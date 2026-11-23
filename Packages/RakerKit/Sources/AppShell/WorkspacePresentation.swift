@@ -53,7 +53,10 @@ struct WorkspaceState<Actions: View>: View {
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                HStack { actions }.controlSize(.large)
+                // Even empty, a row of actions would add the stack's spacing below the text.
+                if Actions.self != EmptyView.self {
+                    HStack { actions }.controlSize(.large)
+                }
             }
             .multilineTextAlignment(.center)
             .padding(Spacing.xl)
