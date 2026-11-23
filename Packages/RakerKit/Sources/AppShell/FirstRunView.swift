@@ -202,8 +202,9 @@ private struct ScopeCard: View {
                         .foregroundStyle(isSelected ? Palette.accent : .secondary)
                         .accessibilityHidden(true)
                 }
-                // Symbols differ in height; a fixed row keeps the titles aligned across cards.
-                .frame(height: 36)
+                // Symbols differ in height; a fixed row, as tall as the tile, keeps the titles
+                // aligned across cards.
+                .frame(height: 40)
                 Text(title)
                     .font(.title3.weight(.semibold))
                 Text(detail)
