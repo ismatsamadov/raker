@@ -59,22 +59,8 @@ struct AppsView: View {
 
     private var appList: some View {
         VStack(spacing: 0) {
-            HStack(spacing: Spacing.s) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search apps", text: $model.appSearch)
-                    .textFieldStyle(.plain)
-                    .accessibilityLabel("Search apps")
-                if !model.appSearch.isEmpty {
-                    Button { model.appSearch = "" } label: {
-                        Image(systemName: "xmark.circle.fill")
-                    }
-                    .buttonStyle(.borderless)
-                    .accessibilityLabel("Clear search")
-                }
-            }
-            .padding(Spacing.s)
-            .surfaceCard(cornerRadius: Radius.control)
-            .padding(Spacing.m)
+            SearchField(prompt: "Search apps", text: $model.appSearch)
+                .padding(Spacing.m)
             List(selection: $model.selectedAppPath) {
                 ForEach(model.visibleApps) { app in
                     AppRow(app: app, size: model.appSizes[app.path], lastOpened: model.appLastOpened[app.path],
@@ -94,6 +80,47 @@ struct AppsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(Spacing.s)
+        }
+    }
+}
+
+/// The system search field: it shows a focus ring, clears with Escape or its clear button,
+/// and VoiceOver reads it as a search field.
+struct SearchField: NSViewRepresentable {
+    let prompt: String
+    @Binding var text: String
+
+    func makeNSView(context: Context) -> NSSearchField {
+        let field = NSSearchField()
+        field.placeholderString = prompt
+        field.controlSize = .large
+        field.font = .systemFont(ofSize: NSFont.systemFontSize(for: .large))
+        // Report every keystroke, and clearing, as it happens.
+        field.sendsSearchStringImmediately = true
+        field.target = context.coordinator
+        field.action = #selector(Coordinator.searchChanged(_:))
+        return field
+    }
+
+    func updateNSView(_ field: NSSearchField, context: Context) {
+        context.coordinator.text = $text
+        if field.stringValue != text { field.stringValue = text }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text)
+    }
+
+    @MainActor
+    final class Coordinator: NSObject {
+        var text: Binding<String>
+
+        init(text: Binding<String>) {
+            self.text = text
+        }
+
+        @objc func searchChanged(_ field: NSSearchField) {
+            text.wrappedValue = field.stringValue
         }
     }
 }
