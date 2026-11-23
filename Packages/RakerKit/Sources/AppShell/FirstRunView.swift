@@ -24,7 +24,8 @@ struct FirstRunView: View {
             .padding(.vertical, Spacing.xxl)
             .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.98)))
         }
-        .animation(reduceMotion ? nil : Motion.smooth, value: model.firstRunStep)
+        // The transition above already drops the scale with Reduce Motion; the crossfade stays.
+        .animation(Motion.smooth, value: model.firstRunStep)
         .fileImporter(isPresented: $model.isChoosingFirstRunFolder, allowedContentTypes: [.folder]) { result in
             if case .success(let url) = result {
                 model.finishFirstRun(scanning: .folder(url))
